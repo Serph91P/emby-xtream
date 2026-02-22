@@ -217,7 +217,7 @@ namespace Emby.Xtream.Plugin.Tests
 
             var client = CreateClient(handler);
             client.Configure("admin", "pass");
-            var (uuidMap, statsMap) = await client.GetChannelDataAsync("http://localhost:8080", CancellationToken.None);
+            var (uuidMap, statsMap, _, _) = await client.GetChannelDataAsync("http://localhost:8080", CancellationToken.None);
 
             Assert.True(uuidMap.ContainsKey(1), "UUID map should be keyed by ch.Id, not upstream stream_id");
             Assert.Equal("aaaabbbb-cccc-dddd-eeee-ffff00001111", uuidMap[1]);
@@ -270,7 +270,7 @@ namespace Emby.Xtream.Plugin.Tests
 
             var client = CreateClient(handler);
             client.Configure("admin", "pass");
-            var (uuidMap, statsMap) = await client.GetChannelDataAsync("http://localhost:8080", CancellationToken.None);
+            var (uuidMap, statsMap, _, _) = await client.GetChannelDataAsync("http://localhost:8080", CancellationToken.None);
 
             Assert.True(uuidMap.ContainsKey(8), "Channel 8 must be reachable via its ch.Id");
             Assert.Equal("uuid-channel-eight", uuidMap[8]);
@@ -341,7 +341,7 @@ namespace Emby.Xtream.Plugin.Tests
 
             var client = CreateClient(handler);
             client.Configure("admin", "pass");
-            var (uuidMap, statsMap) = await client.GetChannelDataAsync("http://localhost:8080", CancellationToken.None);
+            var (uuidMap, statsMap, _, _) = await client.GetChannelDataAsync("http://localhost:8080", CancellationToken.None);
 
             Assert.Equal(3, uuidMap.Count);
             Assert.Equal("uuid-no-streams", uuidMap[1]);
@@ -352,6 +352,78 @@ namespace Emby.Xtream.Plugin.Tests
             Assert.Single(statsMap);
             Assert.True(statsMap.ContainsKey(3));
             Assert.Equal("H264", statsMap[3].VideoCodec);
+        }
+
+        [Fact]
+        public async Task GetChannelDataAsync_MapsGracenoteAndTvgIdFields()
+        {
+            // Channels with tvg_id / tvc_guide_stationid are mapped; empty/null values are excluded.
+            var channelsJson = JsonSerializer.Serialize(new object[]
+            {
+                new
+                {
+                    id = 10,
+                    uuid = "uuid-ch10",
+                    name = "Channel With Station ID",
+                    tvg_id = "ESPN.us",
+                    tvc_guide_stationid = "36099",
+                    streams = System.Array.Empty<object>()
+                },
+                new
+                {
+                    id = 11,
+                    uuid = "uuid-ch11",
+                    name = "Channel With tvg_id Only",
+                    tvg_id = "CNN.us",
+                    tvc_guide_stationid = (string)null,
+                    streams = System.Array.Empty<object>()
+                },
+                new
+                {
+                    id = 12,
+                    uuid = "uuid-ch12",
+                    name = "Channel Without Either Field",
+                    tvg_id = (string)null,
+                    tvc_guide_stationid = "",
+                    streams = System.Array.Empty<object>()
+                }
+            });
+
+            var handler = new MockHandler(request =>
+            {
+                if (request.RequestUri.AbsolutePath.Contains("/api/accounts/token/"))
+                {
+                    var json = JsonSerializer.Serialize(new { access = "tok", refresh = "ref" });
+                    return new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json")
+                    };
+                }
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(channelsJson, System.Text.Encoding.UTF8, "application/json")
+                };
+            });
+
+            var client = CreateClient(handler);
+            client.Configure("admin", "pass");
+            var (uuidMap, _, tvgIdMap, stationIdMap) = await client.GetChannelDataAsync("http://localhost:8080", CancellationToken.None);
+
+            // All three channels should be in the UUID map
+            Assert.Equal(3, uuidMap.Count);
+
+            // tvg_id populated only for channels with non-empty values
+            Assert.True(tvgIdMap.ContainsKey(10));
+            Assert.Equal("ESPN.us", tvgIdMap[10]);
+            Assert.True(tvgIdMap.ContainsKey(11));
+            Assert.Equal("CNN.us", tvgIdMap[11]);
+            Assert.False(tvgIdMap.ContainsKey(12), "Null tvg_id must not be mapped");
+
+            // tvc_guide_stationid populated only for channels with non-empty values
+            Assert.True(stationIdMap.ContainsKey(10));
+            Assert.Equal("36099", stationIdMap[10]);
+            Assert.False(stationIdMap.ContainsKey(11), "Null station ID must not be mapped");
+            Assert.False(stationIdMap.ContainsKey(12), "Empty station ID must not be mapped");
         }
 
         [Fact]

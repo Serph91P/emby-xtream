@@ -643,6 +643,29 @@
                                 If Dispatcharr is unavailable, use direct Xtream URLs instead. Disable to ensure all streams go through Dispatcharr.
                             </div>
                         </div>
+                        <div class="checkboxContainer checkboxContainer-withDescription" style="margin-top:0.5em;">
+                            <label>
+                                <input class="chkForceAudioTranscode" type="checkbox" is="emby-checkbox" />
+                                <span>Force audio transcoding</span>
+                            </label>
+                            <div class="fieldDescription checkboxFieldDescription">
+                                Transcode AC3/EAC3 audio to AAC instead of passing it through.
+                                Fixes silent audio on iOS and Apple TV when using Dispatcharr
+                                (which always proxies MPEG-TS, bypassing the HLS workaround).
+                                Disables Dolby Digital passthrough for clients that support it.
+                            </div>
+                        </div>
+                        <div class="checkboxContainer checkboxContainer-withDescription" style="margin-top:0.5em;">
+                            <label>
+                                <input class="chkEnableGracenoteMatching" type="checkbox" is="emby-checkbox" />
+                                <span>Use Gracenote guide matching</span>
+                            </label>
+                            <div class="fieldDescription checkboxFieldDescription">
+                                Set ListingsChannelId on tuner channels using the Gracenote Station ID
+                                from Dispatcharr. Enables Emby's built-in guide data (Gracenote) to
+                                auto-match channels. Only enable if you use Emby Guide Data, not XMLTV.
+                            </div>
+                        </div>
                         <button class="btnTestDispatcharr raised button-secondary" is="emby-button" type="button">
                             <span>Test Dispatcharr Connection</span>
                         </button>

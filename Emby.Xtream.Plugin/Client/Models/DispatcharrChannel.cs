@@ -39,6 +39,12 @@ namespace Emby.Xtream.Plugin.Client.Models
         [JsonPropertyName("name")]
         public string Name { get; set; } = string.Empty;
 
+        [JsonPropertyName("tvg_id")]
+        public string TvgId { get; set; }
+
+        [JsonPropertyName("tvc_guide_stationid")]
+        public string TvcGuideStationId { get; set; }
+
         [JsonPropertyName("streams")]
         public List<DispatcharrChannel> Streams { get; set; } = new List<DispatcharrChannel>();
     }

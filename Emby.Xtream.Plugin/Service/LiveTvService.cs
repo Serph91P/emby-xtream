@@ -61,6 +61,10 @@ namespace Emby.Xtream.Plugin.Service
                 }
 
                 _logger.Info("Generating M3U playlist");
+                // Ensure Dispatcharr maps are loaded so tvg-id and tvc-guide-stationid
+                // attributes are available even if Emby hasn't polled the tuner yet.
+                if (XtreamTunerHost.Instance != null)
+                    await XtreamTunerHost.Instance.EnsureStatsLoadedAsync(cancellationToken).ConfigureAwait(false);
                 var channelsTask = GetFilteredChannelsAsync(cancellationToken);
                 var categoriesTask = GetLiveCategoriesAsync(cancellationToken);
                 Dictionary<int, string> categoryMap;
@@ -77,7 +81,9 @@ namespace Emby.Xtream.Plugin.Service
                 }
 
                 var channels = channelsTask.Result;
-                var m3u = GenerateM3U(channels, config, categoryMap, catchupOnly: false);
+                var m3u = GenerateM3U(channels, config, categoryMap, catchupOnly: false,
+                    XtreamTunerHost.Instance?.TvgIdMap,
+                    XtreamTunerHost.Instance?.StationIdMap);
 
                 _cachedM3U = m3u;
                 _m3uCacheTime = DateTime.UtcNow;
@@ -107,6 +113,8 @@ namespace Emby.Xtream.Plugin.Service
                 }
 
                 _logger.Info("Generating Catchup M3U playlist");
+                if (XtreamTunerHost.Instance != null)
+                    await XtreamTunerHost.Instance.EnsureStatsLoadedAsync(cancellationToken).ConfigureAwait(false);
                 var channelsTask = GetFilteredChannelsAsync(cancellationToken);
                 var categoriesTask = GetLiveCategoriesAsync(cancellationToken);
                 Dictionary<int, string> categoryMap;
@@ -123,7 +131,9 @@ namespace Emby.Xtream.Plugin.Service
                 }
 
                 var channels = channelsTask.Result;
-                var m3u = GenerateM3U(channels, config, categoryMap, catchupOnly: true);
+                var m3u = GenerateM3U(channels, config, categoryMap, catchupOnly: true,
+                    XtreamTunerHost.Instance?.TvgIdMap,
+                    XtreamTunerHost.Instance?.StationIdMap);
 
                 _cachedCatchupM3U = m3u;
                 _catchupCacheTime = DateTime.UtcNow;
@@ -311,7 +321,13 @@ namespace Emby.Xtream.Plugin.Service
             }
         }
 
-        private static string GenerateM3U(List<LiveStreamInfo> channels, PluginConfiguration config, Dictionary<int, string> categoryNames, bool catchupOnly)
+        private static string GenerateM3U(
+            List<LiveStreamInfo> channels,
+            PluginConfiguration config,
+            Dictionary<int, string> categoryNames,
+            bool catchupOnly,
+            IReadOnlyDictionary<int, string> tvgIdMap = null,
+            IReadOnlyDictionary<int, string> stationIdMap = null)
         {
             var sb = new StringBuilder();
             sb.AppendLine("#EXTM3U");
@@ -327,9 +343,15 @@ namespace Emby.Xtream.Plugin.Service
                     config.ChannelRemoveTerms,
                     config.EnableChannelNameCleaning);
 
-                var epgId = !string.IsNullOrEmpty(channel.EpgChannelId)
-                    ? channel.EpgChannelId
-                    : channel.StreamId.ToString(CultureInfo.InvariantCulture);
+                // Use Dispatcharr tvg_id override when available; fall back to Xtream epg_channel_id.
+                string epgId;
+                if (tvgIdMap != null && tvgIdMap.TryGetValue(channel.StreamId, out var dispatcharrTvgId)
+                    && !string.IsNullOrEmpty(dispatcharrTvgId))
+                    epgId = dispatcharrTvgId;
+                else
+                    epgId = !string.IsNullOrEmpty(channel.EpgChannelId)
+                        ? channel.EpgChannelId
+                        : channel.StreamId.ToString(CultureInfo.InvariantCulture);
 
                 var extinf = new StringBuilder();
                 extinf.Append("#EXTINF:-1");
@@ -347,6 +369,12 @@ namespace Emby.Xtream.Plugin.Service
                     && !string.IsNullOrEmpty(groupTitle))
                 {
                     extinf.AppendFormat(CultureInfo.InvariantCulture, " group-title=\"{0}\"", EscapeAttribute(groupTitle));
+                }
+
+                if (stationIdMap != null && stationIdMap.TryGetValue(channel.StreamId, out var stationId)
+                    && !string.IsNullOrEmpty(stationId))
+                {
+                    extinf.AppendFormat(CultureInfo.InvariantCulture, " tvc-guide-stationid=\"{0}\"", EscapeAttribute(stationId));
                 }
 
                 // Add catch-up attributes if enabled and channel supports it

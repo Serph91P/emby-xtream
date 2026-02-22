@@ -38,11 +38,16 @@ namespace Emby.Xtream.Plugin.Service
 
         private volatile Dictionary<int, StreamStatsInfo> _streamStats = new Dictionary<int, StreamStatsInfo>();
         private volatile Dictionary<int, string> _channelUuidMap = new Dictionary<int, string>();
+        private volatile Dictionary<int, string> _tvgIdMap = new Dictionary<int, string>();
+        private volatile Dictionary<int, string> _stationIdMap = new Dictionary<int, string>();
         private volatile bool _dispatcharrDataLoaded;
         private List<ChannelInfo> _cachedChannels;
         private DateTime _cacheTime = DateTime.MinValue;
 
         public int CachedChannelCount => _cachedChannels?.Count ?? 0;
+
+        public IReadOnlyDictionary<int, string> TvgIdMap => _tvgIdMap;
+        public IReadOnlyDictionary<int, string> StationIdMap => _stationIdMap;
 
         public XtreamTunerHost(IServerApplicationHost applicationHost)
             : base(applicationHost)
@@ -182,10 +187,12 @@ namespace Emby.Xtream.Plugin.Service
                 try
                 {
                     _dispatcharrClient.Configure(config.DispatcharrUser, config.DispatcharrPass);
-                    var (uuidMap, statsMap) = await _dispatcharrClient.GetChannelDataAsync(
+                    var (uuidMap, statsMap, tvgIdMap, stationIdMap) = await _dispatcharrClient.GetChannelDataAsync(
                         config.DispatcharrUrl, cancellationToken).ConfigureAwait(false);
                     newStats = statsMap;
                     _channelUuidMap = uuidMap;
+                    _tvgIdMap = tvgIdMap;
+                    _stationIdMap = stationIdMap;
                     _dispatcharrDataLoaded = true;
                 }
                 catch (Exception ex)
@@ -213,6 +220,11 @@ namespace Emby.Xtream.Plugin.Service
                     tags = new[] { groupTitle };
                 }
 
+                string listingsChannelId = null;
+                if (config.EnableGracenoteMatching
+                    && _stationIdMap.TryGetValue(channel.StreamId, out var stationId))
+                    listingsChannelId = stationId;
+
                 return new ChannelInfo
                 {
                     Id = CreateEmbyChannelId(tuner, streamIdStr),
@@ -223,6 +235,7 @@ namespace Emby.Xtream.Plugin.Service
                     ChannelType = ChannelType.TV,
                     TunerHostId = tuner.Id,
                     Tags = tags,
+                    ListingsChannelId = listingsChannelId,
                 };
             }).ToList();
 
@@ -270,7 +283,7 @@ namespace Emby.Xtream.Plugin.Service
 
             _streamStats.TryGetValue(streamId, out var stats);
 
-            var mediaSource = CreateMediaSourceInfo(streamId, streamUrl, stats, isDispatcharr);
+            var mediaSource = CreateMediaSourceInfo(streamId, streamUrl, stats, isDispatcharr, config.ForceAudioTranscode);
 
             return new List<MediaSourceInfo> { mediaSource };
         }
@@ -297,7 +310,7 @@ namespace Emby.Xtream.Plugin.Service
             }
             _streamStats.TryGetValue(streamId, out var stats);
 
-            var mediaSource = CreateMediaSourceInfo(streamId, streamUrl, stats, isDispatcharr);
+            var mediaSource = CreateMediaSourceInfo(streamId, streamUrl, stats, isDispatcharr, config.ForceAudioTranscode);
             var httpClient = new HttpClient();
             ILiveStream liveStream = new XtreamLiveStream(mediaSource, tuner.Id, httpClient);
 
@@ -313,18 +326,23 @@ namespace Emby.Xtream.Plugin.Service
             _cacheTime = DateTime.MinValue;
             _streamStats = new Dictionary<int, StreamStatsInfo>();
             _channelUuidMap = new Dictionary<int, string>();
+            _tvgIdMap = new Dictionary<int, string>();
+            _stationIdMap = new Dictionary<int, string>();
             _dispatcharrDataLoaded = false;
             Logger.Info("Xtream tuner caches cleared");
         }
 
         /// <summary>
         /// Ensures Dispatcharr stats and UUID mappings are loaded. Called lazily
-        /// on first playback if GetChannelsInternal hasn't run yet (e.g. after restart).
+        /// on first playback if GetChannelsInternal hasn't run yet (e.g. after restart),
+        /// and from LiveTvService before generating M3U output so that tvg-id and
+        /// tvc-guide-stationid attributes are available even when Emby hasn't polled
+        /// the tuner for channels yet (e.g. immediately after a cache refresh).
         /// Uses a flag rather than checking map counts so that a legitimately empty
         /// stats map (all URL-based sources with no stats) doesn't cause a redundant
         /// Dispatcharr API round-trip on every playback request.
         /// </summary>
-        private async Task EnsureStatsLoadedAsync(CancellationToken cancellationToken)
+        internal async Task EnsureStatsLoadedAsync(CancellationToken cancellationToken)
         {
             if (_dispatcharrDataLoaded)
             {
@@ -342,10 +360,12 @@ namespace Emby.Xtream.Plugin.Service
 
             try
             {
-                var (uuidMap, statsMap) = await _dispatcharrClient.GetChannelDataAsync(
+                var (uuidMap, statsMap, tvgIdMap, stationIdMap) = await _dispatcharrClient.GetChannelDataAsync(
                     config.DispatcharrUrl, cancellationToken).ConfigureAwait(false);
                 if (statsMap.Count > 0) _streamStats = statsMap;
                 if (uuidMap.Count > 0) _channelUuidMap = uuidMap;
+                if (tvgIdMap.Count > 0) _tvgIdMap = tvgIdMap;
+                if (stationIdMap.Count > 0) _stationIdMap = stationIdMap;
                 _dispatcharrDataLoaded = true;
                 Logger.Info("Loaded {0} UUIDs and {1} stream stats from Dispatcharr on-demand",
                     uuidMap.Count, statsMap.Count);
@@ -397,7 +417,8 @@ namespace Emby.Xtream.Plugin.Service
         }
 
         private MediaSourceInfo CreateMediaSourceInfo(
-            int streamId, string streamUrl, StreamStatsInfo stats, bool disableProbing = false)
+            int streamId, string streamUrl, StreamStatsInfo stats,
+            bool disableProbing = false, bool forceAudioTranscode = false)
         {
             var sourceId = "xtream_live_" + streamId.ToString(CultureInfo.InvariantCulture);
             bool hasStats = stats?.VideoCodec != null;
@@ -407,6 +428,17 @@ namespace Emby.Xtream.Plugin.Service
             // analysis (~0.1s) Dispatcharr tears down the channel. The real playback connection
             // then hits the teardown and fails, causing a rapid retry storm.
             bool suppressProbing = disableProbing || hasStats;
+
+            var audioCodecLower = hasStats && !string.IsNullOrEmpty(stats.AudioCodec)
+                ? stats.AudioCodec.ToLowerInvariant() : null;
+
+            // When ForceAudioTranscode is enabled, disable direct-stream so Emby transcodes
+            // audio (→ AAC on iOS/Apple TV). This fixes silent AC3 playback on Apple devices.
+            // If stats are available and confirm a non-AC3 codec, direct-stream is safe and
+            // kept enabled. Without stats we can't verify the codec, so we also force
+            // transcoding — the user has opted in and accepted that trade-off.
+            bool suppressDirectStream = forceAudioTranscode &&
+                (!hasStats || audioCodecLower == "ac3" || audioCodecLower == "eac3" || audioCodecLower == "mp2");
 
             var mediaSource = new MediaSourceInfo
             {
@@ -418,7 +450,7 @@ namespace Emby.Xtream.Plugin.Service
                 IsRemote = true,
                 IsInfiniteStream = true,
                 SupportsDirectPlay = false,
-                SupportsDirectStream = true,
+                SupportsDirectStream = !suppressDirectStream,
                 SupportsTranscoding = true,
                 AnalyzeDurationMs = suppressProbing ? 0 : (int?)500,
             };
@@ -461,21 +493,38 @@ namespace Emby.Xtream.Plugin.Service
 
                 mediaStreams.Add(videoStream);
 
+                // Dispatcharr stream_stats does not include audio channel count.
+                // Apply broadcast defaults so Emby has complete stream info.
+                int? audioChannels = null;
+                string channelLayout = null;
+                if (audioCodecLower == "ac3" || audioCodecLower == "eac3")
+                {
+                    audioChannels = 6;
+                    channelLayout = "5.1(side)";
+                }
+                else if (audioCodecLower == "mp2" || audioCodecLower == "mp1")
+                {
+                    audioChannels = 2;
+                    channelLayout = "stereo";
+                }
+
                 mediaStreams.Add(new MediaStream
                 {
                     Type = MediaStreamType.Audio,
                     Index = 1,
-                    Codec = !string.IsNullOrEmpty(stats.AudioCodec)
-                        ? stats.AudioCodec.ToLowerInvariant()
-                        : null,
+                    Codec = audioCodecLower,
+                    Channels = audioChannels,
+                    ChannelLayout = channelLayout,
                 });
 
                 mediaSource.MediaStreams = mediaStreams;
 
                 Logger.Debug(
-                    "Stream {0}: using stats - {1} {2}x{3} @{4}fps, audio {5}",
+                    "Stream {0}: using stats - {1} {2}x{3} @{4}fps, audio {5} {6}ch{7}",
                     streamId, videoCodec, width, height,
-                    stats.SourceFps, stats.AudioCodec ?? "unknown");
+                    stats.SourceFps, audioCodecLower ?? "unknown",
+                    audioChannels.HasValue ? audioChannels.Value.ToString(CultureInfo.InvariantCulture) : "?",
+                    suppressDirectStream ? " [force transcode]" : string.Empty);
             }
             else
             {
