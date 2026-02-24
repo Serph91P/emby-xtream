@@ -50,6 +50,9 @@ tests/e2e/results/*.json
 tests/e2e/test-results/
 tests/e2e/playwright-report/
 
+# Git worktrees
+.worktrees/
+
 # OS files
 .DS_Store
 Thumbs.db
