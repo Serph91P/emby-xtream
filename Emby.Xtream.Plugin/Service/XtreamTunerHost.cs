@@ -147,6 +147,18 @@ namespace Emby.Xtream.Plugin.Service
             // Return cached channels if available and not expired
             if (_cachedChannels != null && DateTime.UtcNow - _cacheTime < CacheDuration)
             {
+                // Emby mutates ChannelInfo objects after receiving them, clearing ListingsChannelId.
+                // Re-apply from _stationIdMap on every cache hit so the field is always correct.
+                foreach (var ch in _cachedChannels)
+                {
+                    if (config.EnableGracenoteMatching
+                        && int.TryParse(ch.TunerChannelId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var sid)
+                        && _stationIdMap.TryGetValue(sid, out var stId)
+                        && !string.IsNullOrEmpty(stId))
+                        ch.ListingsChannelId = stId;
+                    else
+                        ch.ListingsChannelId = null;
+                }
                 var cachedGracenote = _cachedChannels.Count(c => c.ListingsChannelId != null);
                 Logger.Debug("Returning cached channel list ({0} channels, {1} with Gracenote station ID)",
                     _cachedChannels.Count, cachedGracenote);
