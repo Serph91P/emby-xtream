@@ -48,6 +48,10 @@ Numbering: sequential, zero-padded to 3 digits (`001`, `002`, ...).
 
 ## Git Workflow
 
+### Never create a GitHub release without explicit user approval
+
+Tag the commit and push the tag, then stop and ask: "Ready to create the GitHub release for vX.Y.Z — shall I proceed?" Do not run `gh release create` until the user says yes.
+
 ### Commit before switching context
 
 Never leave changes in the working tree when starting unrelated work or ending a session. An uncommitted change is invisible and easy to tangle with later work. Use a `WIP:` commit or `git stash` if the change isn't ready.
