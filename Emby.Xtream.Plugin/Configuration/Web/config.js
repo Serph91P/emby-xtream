@@ -114,7 +114,7 @@ function (BaseView, loading) {
         });
 
         view.querySelector('.btnTestConnection').addEventListener('click', function () {
-            testXtreamConnection(view);
+            testXtreamConnection(self);
         });
 
         view.querySelector('.btnTestDispatcharr').addEventListener('click', function () {
@@ -772,7 +772,8 @@ function (BaseView, loading) {
         return lines.join('\n');
     }
 
-    function testXtreamConnection(view) {
+    function testXtreamConnection(instance) {
+        var view = instance.view;
         var resultEl = view.querySelector('.connectionTestResult');
         resultEl.innerHTML = '<span style="opacity:0.5;">Testing connection...</span>';
 
@@ -811,6 +812,7 @@ function (BaseView, loading) {
                 } catch (e) {
                     setPillResult(resultEl, true, 'Connection successful (non-JSON response).');
                 }
+                saveConfig(instance);
             } else {
                 setPillResult(resultEl, false, 'Connection failed (HTTP ' + xhr.status + ').');
             }
@@ -932,19 +934,30 @@ function (BaseView, loading) {
     function testDispatcharrConnection(instance) {
         var view = instance.view;
         var resultEl = view.querySelector('.dispatcharrTestResult');
-        resultEl.innerHTML = '<span style="opacity:0.5;">Saving config &amp; testing connection...</span>';
+        resultEl.innerHTML = '<span style="opacity:0.5;">Testing connection...</span>';
 
-        // Save config first so the server reads the latest Dispatcharr credentials
-        saveConfig(instance, function () {
-            ApiClient.ajax({
-                type: 'POST',
-                url: ApiClient.getUrl('XtreamTuner/TestDispatcharr'),
-                dataType: 'json'
-            }).then(function (result) {
-                setPillResult(resultEl, result.Success, result.Message);
-            }).catch(function () {
-                setPillResult(resultEl, false, 'Test request failed. Check server logs.');
-            });
+        var url = view.querySelector('.txtDispatcharrUrl').value.replace(/\/+$/, '');
+        var user = view.querySelector('.txtDispatcharrUser').value;
+        var pass = view.querySelector('.txtDispatcharrPass').value;
+
+        if (!url) {
+            setPillResult(resultEl, false, 'Please enter Dispatcharr URL.');
+            return;
+        }
+
+        ApiClient.ajax({
+            type: 'POST',
+            url: ApiClient.getUrl('XtreamTuner/TestDispatcharr'),
+            contentType: 'application/json',
+            data: JSON.stringify({ Url: url, Username: user, Password: pass }),
+            dataType: 'json'
+        }).then(function (result) {
+            setPillResult(resultEl, result.Success, result.Message);
+            if (result.Success) {
+                saveConfig(instance);
+            }
+        }).catch(function () {
+            setPillResult(resultEl, false, 'Test request failed. Check server logs.');
         });
     }
 
