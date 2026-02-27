@@ -19,18 +19,34 @@ export async function login(page: Page): Promise<void> {
 
   await page.goto(url);
 
-  // Emby login form — selectors are stable across recent Emby versions.
-  await page.waitForSelector('#txtManualName, input[name="name"], input[type="text"]', {
-    timeout: 10_000,
-  });
-  await page.fill('#txtManualName, input[name="name"], input[type="text"]', username);
+  // Emby may show either:
+  //   (a) a user-picker screen — tile buttons for each user, then a password field
+  //   (b) a manual login form — username + password text inputs
+  // Detect which one by waiting for the first element to appear.
+  const pickerOrForm = await Promise.race([
+    page.waitForSelector(`button:has-text("${username}")`, { timeout: 10_000 })
+      .then(() => 'picker' as const),
+    page.waitForSelector('#txtManualName, input[name="name"], input[type="text"]', { timeout: 10_000 })
+      .then(() => 'form' as const),
+  ]);
 
-  const passwordInput = page.locator('#txtManualPassword, input[name="password"], input[type="password"]');
-  if (await passwordInput.count() > 0) {
-    await passwordInput.fill(password);
+  if (pickerOrForm === 'picker') {
+    // Click the user tile — Emby then shows only a password field.
+    await page.click(`button:has-text("${username}")`);
+    await page.waitForSelector('#txtManualPassword, input[name="password"], input[type="password"]', {
+      timeout: 10_000,
+    });
+    await page.fill('#txtManualPassword, input[name="password"], input[type="password"]', password);
+    await page.click('button[type="submit"], .btnSubmit, button:has-text("Sign in"), button:has-text("Login")');
+  } else {
+    // Standard text form with username + password inputs.
+    await page.fill('#txtManualName, input[name="name"], input[type="text"]', username);
+    const passwordInput = page.locator('#txtManualPassword, input[name="password"], input[type="password"]');
+    if (await passwordInput.count() > 0) {
+      await passwordInput.fill(password);
+    }
+    await page.click('button[type="submit"], .btnSubmit, button:has-text("Sign in"), button:has-text("Login")');
   }
-
-  await page.click('button[type="submit"], .btnSubmit, button:has-text("Sign in"), button:has-text("Login")');
 
   // Wait for the dashboard to confirm successful login.
   await page.waitForURL(/#!/, { timeout: 15_000 });
@@ -53,6 +69,46 @@ function resolveCommit(): string {
   } catch {
     return 'unknown';
   }
+}
+
+export interface TimingPair {
+  infoTime: number;
+  streamTime: number;
+}
+
+export interface ChannelBenchmark {
+  cold: TimingPair;
+  warm: TimingPair[];
+}
+
+export interface BenchmarkData {
+  channels: Record<string, ChannelBenchmark>;
+}
+
+/**
+ * Write benchmark results to `results/benchmark-<mode>-<date>.json`.
+ * Overwrites any existing file for the same mode+date, so re-runs replace stale data.
+ */
+export function saveBenchmarkResults(mode: string, data: BenchmarkData): void {
+  const version = resolveVersion();
+  const commit = resolveCommit();
+  const date = new Date().toISOString().slice(0, 10);
+
+  const resultsDir = path.resolve(__dirname, '..', 'results');
+  fs.mkdirSync(resultsDir, { recursive: true });
+
+  const filename = path.join(resultsDir, `benchmark-${mode}-${date}.json`);
+
+  const payload = {
+    mode,
+    version,
+    commit,
+    date,
+    ...data,
+  };
+
+  fs.writeFileSync(filename, JSON.stringify(payload, null, 2) + '\n');
+  console.log(`Benchmark results saved to ${filename}`);
 }
 
 /**

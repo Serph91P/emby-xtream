@@ -7,10 +7,13 @@
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "test:debug": "playwright test --debug",
-    "install-browsers": "playwright install chromium"
+    "install-browsers": "playwright install chromium",
+    "benchmark": "playwright test benchmark",
+    "report": "npx tsx report.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.41.0",
-    "dotenv": "^16.4.0"
+    "dotenv": "^16.4.0",
+    "tsx": "^4.7.0"
   }
 }
