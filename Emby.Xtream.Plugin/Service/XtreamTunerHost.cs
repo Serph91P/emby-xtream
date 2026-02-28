@@ -99,6 +99,16 @@ namespace Emby.Xtream.Plugin.Service
                 return new List<ProgramInfo>();
             }
 
+            // If this channel has a Gracenote station ID it is mapped to a listings provider
+            // (e.g. Emby Guide Data). Return no tuner EPG so Emby's guide data takes priority
+            // and the Xtream "dummy" EPG doesn't overwrite the rich metadata.
+            var stationMap = _stationIdMap;
+            if (stationMap != null && stationMap.ContainsKey(streamId))
+            {
+                Logger.Debug("GetProgramsInternal: stream {0} has Gracenote station ID, deferring to listings provider", streamId);
+                return new List<ProgramInfo>();
+            }
+
             var liveTvService = Plugin.Instance.LiveTvService;
             List<Client.Models.EpgProgram> programs;
             try
