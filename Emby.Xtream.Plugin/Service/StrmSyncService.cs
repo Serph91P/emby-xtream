@@ -703,8 +703,20 @@ namespace Emby.Xtream.Plugin.Service
                                 var seasonFolder = string.Format(CultureInfo.InvariantCulture, "Season {0:D2}", seasonNum);
                                 var seasonDir = Path.Combine(seriesDir, seasonFolder);
 
-                                var episodeTitle = !string.IsNullOrWhiteSpace(episode.Title)
-                                    ? " - " + SanitizeFileName(episode.Title)
+                                // Some providers embed the series name + episode code in the title
+                                // (e.g. "EN - American Gigolo - S01E01"). Strip the duplicate portion
+                                // so the filename doesn't read "Show - S01E01 - EN - Show - S01E01".
+                                var rawEpisodeTitle = episode.Title?.Trim() ?? string.Empty;
+                                if (!string.IsNullOrEmpty(rawEpisodeTitle) && !string.IsNullOrEmpty(seriesName))
+                                {
+                                    rawEpisodeTitle = Regex.Replace(
+                                        rawEpisodeTitle,
+                                        @"[\s\-]*" + Regex.Escape(seriesName) + @"[\s\-]*S\d+E\d+[\s\-]*",
+                                        string.Empty,
+                                        RegexOptions.IgnoreCase).Trim('-', ' ');
+                                }
+                                var episodeTitle = !string.IsNullOrWhiteSpace(rawEpisodeTitle)
+                                    ? " - " + SanitizeFileName(rawEpisodeTitle)
                                     : string.Empty;
 
                                 var fileName = string.Format(
