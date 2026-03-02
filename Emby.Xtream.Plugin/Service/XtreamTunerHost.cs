@@ -122,7 +122,7 @@ namespace Emby.Xtream.Plugin.Service
             catch (Exception ex)
             {
                 Logger.Warn("GetProgramsInternal: failed to fetch EPG for stream {0}: {1}", streamId, ex.Message);
-                return new List<ProgramInfo>();
+                programs = new List<EpgProgram>();
             }
 
             var startUnix = startDateUtc.ToUnixTimeSeconds();
