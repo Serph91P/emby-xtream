@@ -136,19 +136,21 @@ namespace Emby.Xtream.Plugin.Client
                 }
 
                 // Also key by ch.Id (Dispatcharr's channel ID) so Config B works.
-                // These only write if no entry already exists for that key.
-                if (!uuidMap.ContainsKey(ch.Id))
-                    uuidMap[ch.Id] = ch.Uuid;
+                // ch.Id is Dispatcharr's own authoritative identifier, so it always
+                // overwrites — no ContainsKey guard. This prevents a cross-channel
+                // collision where another channel's stream.StreamId happens to equal
+                // this channel's ch.Id, which would otherwise block the correct UUID.
+                uuidMap[ch.Id] = ch.Uuid;
 
-                if (!string.IsNullOrEmpty(ch.TvgId) && !tvgIdMap.ContainsKey(ch.Id))
+                if (!string.IsNullOrEmpty(ch.TvgId))
                     tvgIdMap[ch.Id] = ch.TvgId;
 
-                if (!string.IsNullOrEmpty(ch.TvcGuideStationId) && !stationIdMap.ContainsKey(ch.Id))
+                if (!string.IsNullOrEmpty(ch.TvcGuideStationId))
                     stationIdMap[ch.Id] = ch.TvcGuideStationId;
 
                 foreach (var stream in ch.Streams)
                 {
-                    if (stream.StreamStats?.VideoCodec != null && !statsMap.ContainsKey(ch.Id))
+                    if (stream.StreamStats?.VideoCodec != null)
                     {
                         statsMap[ch.Id] = stream.StreamStats;
                         break;

@@ -395,6 +395,52 @@ namespace Emby.Xtream.Plugin.Tests
         }
 
         [Fact]
+        public async Task GetChannelDataAsync_ChIdWinsWhenItCollidesWithAnotherChannelsStreamId()
+        {
+            // Regression: when Channel A's stream.StreamId equals Channel B's ch.Id, the old
+            // ContainsKey guard blocked Channel B's ch.Id from writing, so Channel B was
+            // served Channel A's UUID.  ch.Id is Dispatcharr's own ID and must always win.
+            //
+            // Cartoon: ch.Id=100, stream_id=500, uuid=cartoon-uuid
+            // ESPN:    ch.Id=500, stream_id=999, uuid=espn-uuid
+            // Collision: Cartoon's stream_id (500) == ESPN's ch.Id (500)
+            //
+            // Config B lookup for ESPN uses ch.Id=500 → must return espn-uuid.
+            var channelsJson = JsonSerializer.Serialize(new object[]
+            {
+                new
+                {
+                    id = 100,
+                    uuid = "cartoon-uuid",
+                    name = "Cartoon Channel",
+                    streams = new[]
+                    {
+                        new { id = 1, name = "src", stream_id = 500, stream_stats = (object)null }
+                    }
+                },
+                new
+                {
+                    id = 500,
+                    uuid = "espn-uuid",
+                    name = "ESPN",
+                    streams = new[]
+                    {
+                        new { id = 2, name = "src", stream_id = 999, stream_stats = (object)null }
+                    }
+                }
+            });
+
+            var (uuidMap, _, _, _, _) = await RunGetChannelData(channelsJson);
+
+            // Config B: each channel looked up by its own ch.Id
+            Assert.Equal("cartoon-uuid", uuidMap[100]);
+            Assert.Equal("espn-uuid",    uuidMap[500]);   // was returning cartoon-uuid before the fix
+
+            // Config A: ESPN's upstream stream_id is unambiguous
+            Assert.Equal("espn-uuid", uuidMap[999]);
+        }
+
+        [Fact]
         public async Task GetChannelDataAsync_EmptyUuid_ChannelSkipped()
         {
             // Channels without a UUID cannot be proxied; they must not appear in any map.
