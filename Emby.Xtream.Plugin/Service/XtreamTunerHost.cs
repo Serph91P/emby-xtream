@@ -724,6 +724,14 @@ namespace Emby.Xtream.Plugin.Service
                         videoStream.AverageFrameRate = (float)stats.SourceFps.Value;
                     }
                     if (stats.Bitrate.HasValue) videoStream.BitRate = (int)(stats.Bitrate.Value * 1000);
+                    if (!string.IsNullOrEmpty(stats.VideoProfile))
+                        videoStream.Profile = stats.VideoProfile;
+                    if (stats.VideoLevel.HasValue)
+                        videoStream.Level = (double)stats.VideoLevel.Value;
+                    if (stats.VideoBitDepth.HasValue)
+                        videoStream.BitDepth = stats.VideoBitDepth.Value;
+                    if (stats.VideoRefFrames.HasValue)
+                        videoStream.RefFrames = stats.VideoRefFrames.Value;
 
                     mediaStreams.Add(videoStream);
                 }
@@ -778,6 +786,9 @@ namespace Emby.Xtream.Plugin.Service
                     else if (audioCodecLower == "aac") audioStream.BitRate = 128000;
                     else if (audioCodecLower == "mp2" || audioCodecLower == "mp1") audioStream.BitRate = 256000;
                 }
+
+                if (!string.IsNullOrEmpty(stats.AudioLanguage))
+                    audioStream.Language = stats.AudioLanguage;
 
                 audioStream.DisplayTitle = channelLayout != null
                     ? $"{(audioCodecLower ?? "aac").ToUpperInvariant()} {channelLayout}"

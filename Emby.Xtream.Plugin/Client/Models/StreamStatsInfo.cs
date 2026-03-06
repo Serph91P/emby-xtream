@@ -27,5 +27,20 @@ namespace Emby.Xtream.Plugin.Client.Models
 
         [JsonPropertyName("sample_rate")]
         public int? SampleRate { get; set; }
+
+        [JsonPropertyName("video_profile")]
+        public string VideoProfile { get; set; }
+
+        [JsonPropertyName("video_level")]
+        public int? VideoLevel { get; set; }
+
+        [JsonPropertyName("video_bit_depth")]
+        public int? VideoBitDepth { get; set; }
+
+        [JsonPropertyName("video_ref_frames")]
+        public int? VideoRefFrames { get; set; }
+
+        [JsonPropertyName("audio_language")]
+        public string AudioLanguage { get; set; }
     }
 }
