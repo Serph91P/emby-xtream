@@ -40,6 +40,9 @@ namespace Emby.Xtream.Plugin
 
         public static Plugin Instance => _instance ?? throw new InvalidOperationException("Plugin not initialized");
 
+        /// <summary>Returns the current instance, or null if the plugin has not been initialised (e.g. during unit tests).</summary>
+        internal static Plugin InstanceOrNull => _instance;
+
         public IApplicationHost ApplicationHost => _applicationHost;
 
         public new IApplicationPaths ApplicationPaths => _applicationPaths;

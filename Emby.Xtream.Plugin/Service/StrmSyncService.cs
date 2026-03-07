@@ -91,7 +91,7 @@ namespace Emby.Xtream.Plugin.Service
 
         private static void ApplyUserAgentToSharedClient()
         {
-            var ua = Plugin.Instance?.Configuration?.HttpUserAgent;
+            var ua = Plugin.InstanceOrNull?.Configuration?.HttpUserAgent;
             SharedHttpClient.DefaultRequestHeaders.Remove("User-Agent");
             if (!string.IsNullOrEmpty(ua))
                 SharedHttpClient.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", ua);
@@ -159,7 +159,7 @@ namespace Emby.Xtream.Plugin.Service
             _syncHistory = new List<SyncHistoryEntry>();
             try
             {
-                var json = Plugin.Instance?.Configuration?.SyncHistoryJson;
+                var json = Plugin.InstanceOrNull?.Configuration?.SyncHistoryJson;
                 if (!string.IsNullOrWhiteSpace(json))
                 {
                     var loaded = STJ.JsonSerializer.Deserialize<List<SyncHistoryEntry>>(json, JsonOptions);
