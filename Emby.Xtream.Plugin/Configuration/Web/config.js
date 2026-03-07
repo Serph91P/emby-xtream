@@ -46,7 +46,7 @@ function (BaseView, loading) {
             updateDispatcharrVisibility(view);
         });
 
-        view.querySelector('.chkEnableEpg').addEventListener('change', function () {
+        view.querySelector('.selectEpgSource').addEventListener('change', function () {
             updateEpgVisibility(view);
         });
 
@@ -337,7 +337,8 @@ function (BaseView, loading) {
             view.querySelector('.selOutputFormat').value = config.LiveTvOutputFormat || 'ts';
             view.querySelector('.chkIncludeAdult').checked = !!config.IncludeAdultChannels;
 
-            view.querySelector('.chkEnableEpg').checked = config.EnableEpg !== false;
+            view.querySelector('.selectEpgSource').value = (config.EpgSource || 0).toString();
+            view.querySelector('.txtCustomEpgUrl').value = config.CustomEpgUrl || '';
             view.querySelector('.chkDeferEpgToGuideData').checked = config.DeferEpgToGuideData !== false;
             view.querySelector('.txtEpgCacheMinutes').value = config.EpgCacheMinutes || 30;
             view.querySelector('.txtEpgDaysToFetch').value = config.EpgDaysToFetch || 2;
@@ -459,7 +460,8 @@ function (BaseView, loading) {
             config.LiveTvOutputFormat = view.querySelector('.selOutputFormat').value;
             config.IncludeAdultChannels = view.querySelector('.chkIncludeAdult').checked;
 
-            config.EnableEpg = view.querySelector('.chkEnableEpg').checked;
+            config.EpgSource = parseInt(view.querySelector('.selectEpgSource').value, 10);
+            config.CustomEpgUrl = view.querySelector('.txtCustomEpgUrl').value.trim();
             config.DeferEpgToGuideData = view.querySelector('.chkDeferEpgToGuideData').checked;
             config.EpgCacheMinutes = parseInt(view.querySelector('.txtEpgCacheMinutes').value, 10) || 30;
             config.EpgDaysToFetch = parseInt(view.querySelector('.txtEpgDaysToFetch').value, 10) || 2;
@@ -572,8 +574,9 @@ function (BaseView, loading) {
     }
 
     function updateEpgVisibility(view) {
-        var enabled = view.querySelector('.chkEnableEpg').checked;
-        view.querySelector('.epgSettings').style.display = enabled ? '' : 'none';
+        var source = parseInt(view.querySelector('.selectEpgSource').value, 10);
+        view.querySelector('.epgSettings').style.display = source !== 2 ? '' : 'none';
+        view.querySelector('.epgCustomUrlSettings').style.display = source === 1 ? '' : 'none';
     }
 
     function updateNameCleaningVisibility(view) {

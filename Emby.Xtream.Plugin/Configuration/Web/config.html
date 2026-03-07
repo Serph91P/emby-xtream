@@ -962,13 +962,24 @@
 
                 <div class="verticalSection">
                     <h2 class="sectionTitle">EPG / Guide Data</h2>
-                    <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label>
-                            <input class="chkEnableEpg" type="checkbox" is="emby-checkbox" />
-                            <span>Enable EPG Data</span>
-                        </label>
-                        <div class="fieldDescription checkboxFieldDescription">
-                            Fetch program guide data from the Xtream server and include it in the XMLTV output.
+                    <div class="inputContainer">
+                        <select class="selectEpgSource" is="emby-select" label="EPG Source">
+                            <option value="0">Xtream server (automatic)</option>
+                            <option value="1">Custom URL</option>
+                            <option value="2">Disabled</option>
+                        </select>
+                        <div class="fieldDescription">
+                            <b>Xtream server</b> — programme guide is fetched automatically from your Xtream server. No extra configuration needed.<br />
+                            <b>Custom URL</b> — use any XMLTV feed (e.g. your Dispatcharr <code>/output/epg</code> endpoint). If the URL fails, no EPG is shown — it will not fall back to the Xtream server.<br />
+                            <b>Disabled</b> — no EPG from this plugin. Use this if you have added an XMLTV source directly in Emby's Live TV settings to avoid duplicate entries.
+                        </div>
+                    </div>
+                    <div class="epgCustomUrlSettings" style="display:none;">
+                        <div class="inputContainer">
+                            <input class="txtCustomEpgUrl" type="url" is="emby-input" label="Custom EPG URL" />
+                            <div class="fieldDescription">
+                                Full URL to an XMLTV feed, e.g. <code>http://&lt;dispatcharr&gt;:9191/output/epg</code>
+                            </div>
                         </div>
                     </div>
                     <div class="epgSettings">

@@ -16,8 +16,12 @@ namespace Emby.Xtream.Plugin
         public string LiveTvOutputFormat { get; set; } = "ts";
 
         // EPG / Guide Data
-        public bool EnableEpg { get; set; } = true;
+        public EpgSourceMode EpgSource { get; set; } = EpgSourceMode.XtreamServer;
+        public string CustomEpgUrl { get; set; } = string.Empty;
         public bool DeferEpgToGuideData { get; set; } = true;
+
+        // Back-compat: migrate EnableEpg (bool) → EpgSource on first load
+        [Obsolete("Use EpgSource instead")] public bool EnableEpg { get; set; } = true;
         public int EpgCacheMinutes { get; set; } = 30;
         public int EpgDaysToFetch { get; set; } = 2;
         public int M3UCacheMinutes { get; set; } = 15;
@@ -97,5 +101,12 @@ namespace Emby.Xtream.Plugin
         public long LastMovieSyncTimestamp { get; set; }
         public long LastSeriesSyncTimestamp { get; set; }
         public string SyncHistoryJson { get; set; } = string.Empty;
+    }
+
+    public enum EpgSourceMode
+    {
+        XtreamServer = 0,
+        CustomUrl    = 1,
+        Disabled     = 2,
     }
 }

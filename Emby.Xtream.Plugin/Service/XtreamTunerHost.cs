@@ -80,7 +80,7 @@ namespace Emby.Xtream.Plugin.Service
 
         public override bool SupportsGuideData(TunerHostInfo tuner)
         {
-            return Plugin.Instance.Configuration.EnableEpg;
+            return Plugin.Instance.Configuration.EpgSource != EpgSourceMode.Disabled;
         }
 
         protected override async Task<List<ProgramInfo>> GetProgramsInternal(

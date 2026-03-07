@@ -378,7 +378,7 @@ namespace Emby.Xtream.Plugin.Service
             }
 
             // Fetch EPG data if enabled
-            if (config.EnableEpg)
+            if (config.EpgSource != EpgSourceMode.Disabled)
             {
                 var epgData = await FetchEpgDataAsync(channels, config, cancellationToken).ConfigureAwait(false);
 
@@ -522,7 +522,16 @@ namespace Emby.Xtream.Plugin.Service
                 }
             }
 
-            // 4. Fall back to per-channel JSON (get_simple_data_table)
+            // 4. Fall back to per-channel JSON (get_simple_data_table) — Xtream server only.
+            //    Custom URL mode does not fall back: if the user's URL failed, return empty so
+            //    GetProgramsInternal shows a dummy placeholder rather than silently using a
+            //    different source.
+            if (Plugin.Instance.Configuration.EpgSource == EpgSourceMode.CustomUrl)
+            {
+                _logger.Debug("FetchEpgForChannelCachedAsync: custom URL failed, returning empty for stream {0}", streamId);
+                return new List<EpgProgram>();
+            }
+
             _logger.Debug("FetchEpgForChannelCachedAsync: using JSON fallback for stream {0}", streamId);
             var epgListings = await FetchEpgForChannelAsync(streamId, cancellationToken).ConfigureAwait(false);
             var jsonPrograms = epgListings?.Listings ?? new List<EpgProgram>();
@@ -576,12 +585,20 @@ namespace Emby.Xtream.Plugin.Service
                 if (_xmltvCache != null && DateTime.UtcNow - _xmltvCacheTime < cacheTtl)
                     return true;
 
-                var url = string.Format(
-                    CultureInfo.InvariantCulture,
-                    "{0}/xmltv.php?username={1}&password={2}",
-                    config.BaseUrl, config.Username, config.Password);
-
-                _logger.Info("Fetching bulk XMLTV EPG from {0}/xmltv.php", config.BaseUrl);
+                string url;
+                if (config.EpgSource == EpgSourceMode.CustomUrl && !string.IsNullOrWhiteSpace(config.CustomEpgUrl))
+                {
+                    url = config.CustomEpgUrl;
+                    _logger.Info("Fetching bulk XMLTV EPG from custom URL");
+                }
+                else
+                {
+                    url = string.Format(
+                        CultureInfo.InvariantCulture,
+                        "{0}/xmltv.php?username={1}&password={2}",
+                        config.BaseUrl, config.Username, config.Password);
+                    _logger.Info("Fetching bulk XMLTV EPG from {0}/xmltv.php", config.BaseUrl);
+                }
 
                 try
                 {
@@ -619,7 +636,10 @@ namespace Emby.Xtream.Plugin.Service
                 catch (Exception ex)
                 {
                     _xmltvFailed = true;
-                    _logger.Warn("XMLTV EPG fetch failed, will fall back to per-channel JSON: {0}", ex.Message);
+                    var isCustom = config.EpgSource == EpgSourceMode.CustomUrl;
+                    _logger.Warn(isCustom
+                        ? "Custom EPG URL fetch failed — no fallback: {0}"
+                        : "XMLTV EPG fetch failed, will fall back to per-channel JSON: {0}", ex.Message);
                     return false;
                 }
             }
