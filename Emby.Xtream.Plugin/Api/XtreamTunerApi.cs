@@ -379,7 +379,10 @@ namespace Emby.Xtream.Plugin.Api
 
             try
             {
-                await syncService.SyncMoviesAsync(CancellationToken.None).ConfigureAwait(false);
+                await syncService.SyncMoviesAsync(
+                    config,
+                    CancellationToken.None,
+                    () => Plugin.Instance.SaveConfiguration()).ConfigureAwait(false);
                 var progress = syncService.MovieProgress;
                 result.Success = true;
                 result.Message = "Movie sync completed.";
@@ -419,7 +422,10 @@ namespace Emby.Xtream.Plugin.Api
 
             try
             {
-                await syncService.SyncSeriesAsync(CancellationToken.None).ConfigureAwait(false);
+                await syncService.SyncSeriesAsync(
+                    config,
+                    CancellationToken.None,
+                    () => Plugin.Instance.SaveConfiguration()).ConfigureAwait(false);
                 var progress = syncService.SeriesProgress;
                 result.Success = true;
                 result.Message = "Series sync completed.";

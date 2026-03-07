@@ -99,6 +99,7 @@ namespace Emby.Xtream.Plugin.Service
 
         private readonly ILogger _logger;
         private readonly TmdbLookupService _tmdbLookupService;
+        private readonly HttpClient _httpClient;
         private List<SyncHistoryEntry> _syncHistory;
         private readonly object _historyLock = new object();
         private readonly List<FailedSyncItem> _failedItems = new List<FailedSyncItem>();
@@ -108,10 +109,11 @@ namespace Emby.Xtream.Plugin.Service
         private SyncProgress _seriesProgress = new SyncProgress();
         private SyncProgress _episodeProgress = new SyncProgress();
 
-        public StrmSyncService(ILogger logger)
+        public StrmSyncService(ILogger logger, HttpClient httpClient = null)
         {
             _logger = logger;
             _tmdbLookupService = new TmdbLookupService(logger);
+            _httpClient = httpClient ?? SharedHttpClient;
         }
 
         /// <summary>
@@ -185,7 +187,7 @@ namespace Emby.Xtream.Plugin.Service
         /// so the next run performs a full re-sync and regenerates files with corrected names.
         /// Returns true when a version upgrade was applied (timestamps were reset), false otherwise.
         /// </summary>
-        private bool CheckAndUpgradeNamingVersion(PluginConfiguration config)
+        private bool CheckAndUpgradeNamingVersion(PluginConfiguration config, Action saveConfig)
         {
             if (config.StrmNamingVersion >= CurrentStrmNamingVersion)
                 return false;
@@ -196,15 +198,14 @@ namespace Emby.Xtream.Plugin.Service
             config.StrmNamingVersion = CurrentStrmNamingVersion;
             config.LastMovieSyncTimestamp = 0;
             config.LastSeriesSyncTimestamp = 0;
-            Plugin.Instance.SaveConfiguration();
+            saveConfig?.Invoke();
             return true;
         }
 
-        public async Task SyncMoviesAsync(CancellationToken cancellationToken)
+        public async Task SyncMoviesAsync(PluginConfiguration config, CancellationToken cancellationToken, Action saveConfig = null)
         {
             ApplyUserAgentToSharedClient();
-            var config = Plugin.Instance.Configuration;
-            CheckAndUpgradeNamingVersion(config);
+            CheckAndUpgradeNamingVersion(config, saveConfig);
             _movieProgress = new SyncProgress { IsRunning = true, Phase = "Starting movie sync" };
             lock (_failedItemsLock) { _failedItems.Clear(); }
             var movieSyncStart = DateTime.UtcNow;
@@ -221,7 +222,7 @@ namespace Emby.Xtream.Plugin.Service
                 if (!string.Equals(config.MovieFolderMode, "single", StringComparison.OrdinalIgnoreCase))
                 {
                     _movieProgress.Phase = "Fetching VOD categories";
-                    var categories = await FetchCategoriesAsync("get_vod_categories", cancellationToken).ConfigureAwait(false);
+                    var categories = await FetchCategoriesAsync("get_vod_categories", config, cancellationToken).ConfigureAwait(false);
                     foreach (var cat in categories)
                     {
                         categoryNames[cat.CategoryId] = cat.CategoryName;
@@ -483,7 +484,7 @@ namespace Emby.Xtream.Plugin.Service
                     if (maxAdded > config.LastMovieSyncTimestamp)
                     {
                         config.LastMovieSyncTimestamp = maxAdded;
-                        Plugin.Instance.SaveConfiguration();
+                        saveConfig?.Invoke();
                     }
                 }
 
@@ -519,11 +520,10 @@ namespace Emby.Xtream.Plugin.Service
             }
         }
 
-        public async Task SyncSeriesAsync(CancellationToken cancellationToken)
+        public async Task SyncSeriesAsync(PluginConfiguration config, CancellationToken cancellationToken, Action saveConfig = null)
         {
             ApplyUserAgentToSharedClient();
-            var config = Plugin.Instance.Configuration;
-            CheckAndUpgradeNamingVersion(config);
+            CheckAndUpgradeNamingVersion(config, saveConfig);
             _seriesProgress = new SyncProgress { IsRunning = true, Phase = "Starting series sync" };
             _episodeProgress = new SyncProgress { IsRunning = true };
             lock (_failedItemsLock) { _failedItems.RemoveAll(i => i.ItemType == "Series"); }
@@ -829,7 +829,7 @@ namespace Emby.Xtream.Plugin.Service
                 if (maxSeriesTs > config.LastSeriesSyncTimestamp)
                 {
                     config.LastSeriesSyncTimestamp = maxSeriesTs;
-                    Plugin.Instance.SaveConfiguration();
+                    saveConfig?.Invoke();
                 }
 
                 _logger.Info("Series STRM sync completed: {0} written, {1} skipped, {2} failed",
@@ -1246,15 +1246,14 @@ namespace Emby.Xtream.Plugin.Service
             return rootFolder;
         }
 
-        private async Task<List<Category>> FetchCategoriesAsync(string action, CancellationToken cancellationToken)
+        private async Task<List<Category>> FetchCategoriesAsync(string action, PluginConfiguration config, CancellationToken cancellationToken)
         {
-            var config = Plugin.Instance.Configuration;
             var url = string.Format(
                 CultureInfo.InvariantCulture,
                 "{0}/player_api.php?username={1}&password={2}&action={3}",
                 config.BaseUrl, Uri.EscapeDataString(config.Username ?? string.Empty), Uri.EscapeDataString(config.Password ?? string.Empty), action);
 
-            var json = await SharedHttpClient.GetStringAsync(url).ConfigureAwait(false);
+            var json = await _httpClient.GetStringAsync(url).ConfigureAwait(false);
             return STJ.JsonSerializer.Deserialize<List<Category>>(json, JsonOptions)
                 ?? new List<Category>();
         }
@@ -1262,7 +1261,7 @@ namespace Emby.Xtream.Plugin.Service
         private async Task<List<Category>> FetchSeriesCategoriesWithFallbackAsync(
             PluginConfiguration config, CancellationToken cancellationToken)
         {
-            var categories = await FetchCategoriesAsync("get_series_categories", cancellationToken).ConfigureAwait(false);
+            var categories = await FetchCategoriesAsync("get_series_categories", config, cancellationToken).ConfigureAwait(false);
             if (categories.Count > 0)
             {
                 return categories;
@@ -1297,7 +1296,7 @@ namespace Emby.Xtream.Plugin.Service
                     "{0}/player_api.php?username={1}&password={2}&action=get_vod_streams",
                     config.BaseUrl, Uri.EscapeDataString(config.Username ?? string.Empty), Uri.EscapeDataString(config.Password ?? string.Empty));
 
-                var json = await SharedHttpClient.GetStringAsync(url).ConfigureAwait(false);
+                var json = await _httpClient.GetStringAsync(url).ConfigureAwait(false);
                 allStreams = STJ.JsonSerializer.Deserialize<List<VodStreamInfo>>(json, JsonOptions)
                     ?? new List<VodStreamInfo>();
             }
@@ -1314,7 +1313,7 @@ namespace Emby.Xtream.Plugin.Service
                             "{0}/player_api.php?username={1}&password={2}&action=get_vod_streams&category_id={3}",
                             config.BaseUrl, Uri.EscapeDataString(config.Username ?? string.Empty), Uri.EscapeDataString(config.Password ?? string.Empty), catId);
 
-                        var json = await SharedHttpClient.GetStringAsync(url).ConfigureAwait(false);
+                        var json = await _httpClient.GetStringAsync(url).ConfigureAwait(false);
                         var streams = STJ.JsonSerializer.Deserialize<List<VodStreamInfo>>(json, JsonOptions)
                             ?? new List<VodStreamInfo>();
 
@@ -1365,7 +1364,7 @@ namespace Emby.Xtream.Plugin.Service
                     "{0}/player_api.php?username={1}&password={2}&action=get_series",
                     config.BaseUrl, Uri.EscapeDataString(config.Username ?? string.Empty), Uri.EscapeDataString(config.Password ?? string.Empty));
 
-                var json = await SharedHttpClient.GetStringAsync(url).ConfigureAwait(false);
+                var json = await _httpClient.GetStringAsync(url).ConfigureAwait(false);
                 allSeries = STJ.JsonSerializer.Deserialize<List<SeriesInfo>>(json, JsonOptions)
                     ?? new List<SeriesInfo>();
             }
@@ -1382,7 +1381,7 @@ namespace Emby.Xtream.Plugin.Service
                             "{0}/player_api.php?username={1}&password={2}&action=get_series&category_id={3}",
                             config.BaseUrl, Uri.EscapeDataString(config.Username ?? string.Empty), Uri.EscapeDataString(config.Password ?? string.Empty), catId);
 
-                        var json = await SharedHttpClient.GetStringAsync(url).ConfigureAwait(false);
+                        var json = await _httpClient.GetStringAsync(url).ConfigureAwait(false);
                         var series = STJ.JsonSerializer.Deserialize<List<SeriesInfo>>(json, JsonOptions)
                             ?? new List<SeriesInfo>();
 
@@ -1426,7 +1425,7 @@ namespace Emby.Xtream.Plugin.Service
                 "{0}/player_api.php?username={1}&password={2}&action=get_series_info&series_id={3}",
                 config.BaseUrl, Uri.EscapeDataString(config.Username ?? string.Empty), Uri.EscapeDataString(config.Password ?? string.Empty), seriesId);
 
-            var json = await SharedHttpClient.GetStringAsync(url).ConfigureAwait(false);
+            var json = await _httpClient.GetStringAsync(url).ConfigureAwait(false);
             return STJ.JsonSerializer.Deserialize<SeriesDetailInfo>(json, JsonOptions);
         }
 

@@ -44,7 +44,10 @@ namespace Emby.Xtream.Plugin.Service
                 return;
             }
             progress.Report(0);
-            await svc.SyncMoviesAsync(cancellationToken).ConfigureAwait(false);
+            await svc.SyncMoviesAsync(
+                config,
+                cancellationToken,
+                () => Plugin.Instance.SaveConfiguration()).ConfigureAwait(false);
             progress.Report(100);
         }
     }
