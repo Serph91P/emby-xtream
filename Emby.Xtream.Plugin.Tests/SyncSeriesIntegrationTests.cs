@@ -258,7 +258,50 @@ namespace Emby.Xtream.Plugin.Tests
         }
 
         // -----------------------------------------------------------------
-        // Test 8: MultiSeason_WritesFilesInCorrectSubdirs
+        // Test 8: EpisodeTitleDeduplication_TitleNotDuplicatedInFilename
+        // -----------------------------------------------------------------
+
+        [Fact]
+        public async Task EpisodeTitleDeduplication_TitleNotDuplicatedInFilename()
+        {
+            // Provider embeds series name + episode code in the episode title:
+            // title = "Breaking Bad - S01E01"
+            // Without deduplication the filename would be:
+            //   Breaking Bad - S01E01 - Breaking Bad - S01E01.strm
+            // With StripEpisodeTitleDuplicate the title becomes empty, giving:
+            //   Breaking Bad - S01E01.strm
+            var config = DefaultConfig();
+            var list = SeriesListJson(Series(seriesId: 1, name: "Breaking Bad", lastModified: "2000"));
+            var detail = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                info = new { series_id = 1, name = "Breaking Bad", tmdb = "" },
+                seasons = new object[0],
+                episodes = new System.Collections.Generic.Dictionary<string, object[]>
+                {
+                    ["1"] = new object[]
+                    {
+                        new { id = 101, episode_num = 1, title = "Breaking Bad - S01E01",
+                              container_extension = "mp4", season = 1 }
+                    }
+                }
+            });
+            RegisterSeriesResponses(list, detail, seriesId: 1);
+
+            await MakeService().SyncSeriesAsync(config, None, SaveConfig);
+
+            // The clean filename (title stripped to empty string)
+            var expectedPath = EpisodeStrmPath("Breaking Bad", season: 1, episode: 1, title: "");
+            Assert.True(File.Exists(expectedPath), $"Expected STRM at: {expectedPath}");
+
+            // The duplicated filename must NOT exist
+            var duplicatedPath = EpisodeStrmPath("Breaking Bad", season: 1, episode: 1,
+                title: "Breaking Bad - S01E01");
+            Assert.False(File.Exists(duplicatedPath),
+                "Duplicated series name in filename — StripEpisodeTitleDuplicate should have removed it");
+        }
+
+        // -----------------------------------------------------------------
+        // Test 9: MultiSeason_WritesFilesInCorrectSubdirs
         // -----------------------------------------------------------------
 
         [Fact]
