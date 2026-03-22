@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Emby.Xtream.Plugin.Client;
 using Emby.Xtream.Plugin.Client.Models;
+using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.LiveTv;
@@ -438,12 +439,21 @@ namespace Emby.Xtream.Plugin.Service
                     channelNumber = channel.Num.ToString(CultureInfo.InvariantCulture);
                 }
 
+                string callSign = null;
+                if (config.EnableDispatcharr
+                    && _tvgIdMap.TryGetValue(channel.StreamId, out var tvgId)
+                    && !string.IsNullOrEmpty(tvgId))
+                {
+                    callSign = tvgId;
+                }
+
                 return new ChannelInfo
                 {
                     Id = CreateEmbyChannelId(tuner, streamIdStr),
                     TunerChannelId = tunerChannelId,
                     Name = cleanName,
                     Number = channelNumber,
+                    CallSign = callSign,
                     ImageUrl = string.IsNullOrEmpty(channel.StreamIcon) ? null : channel.StreamIcon,
                     ChannelType = ChannelType.TV,
                     TunerHostId = tuner.Id,
@@ -459,6 +469,24 @@ namespace Emby.Xtream.Plugin.Service
             var gracenoteCount = result.Count(c => c.ListingsChannelId != null);
             Logger.Info("Channel list cached with {0} channels ({1} with stream stats, {2} with Gracenote station ID)",
                 result.Count, statsCount, gracenoteCount);
+
+            if (config.DeferEpgToGuideData && gracenoteCount > 0)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await Task.Delay(2000, cancellationToken).ConfigureAwait(false);
+                        var mapped = await SyncGuideMappingsAsync(cancellationToken).ConfigureAwait(false);
+                        Logger.Info("Auto guide-mapping sync completed: {0} channels mapped", mapped);
+                    }
+                    catch (OperationCanceledException) { }
+                    catch (Exception ex)
+                    {
+                        Logger.Warn("Auto guide-mapping sync failed: {0}", ex.Message);
+                    }
+                }, cancellationToken);
+            }
 
             return result;
         }
@@ -564,6 +592,100 @@ namespace Emby.Xtream.Plugin.Service
             _allowedStreamIds = null;
             _dispatcharrDataLoaded = false;
             Logger.Info("Xtream tuner caches cleared");
+        }
+
+        /// <summary>
+        /// Programmatically maps tuner channels to Emby Guide Data (Gracenote) entries
+        /// using the station IDs from Dispatcharr. This bypasses Emby's unreliable
+        /// auto-mapping (which uses name/call-sign/number heuristics) and creates explicit
+        /// mappings via ILiveTvManager.SetChannelMapping().
+        /// </summary>
+        /// <returns>Number of channels successfully mapped.</returns>
+        public async Task<int> SyncGuideMappingsAsync(CancellationToken cancellationToken)
+        {
+            var channels = _cachedChannels;
+            if (channels == null || channels.Count == 0)
+            {
+                Logger.Info("SyncGuideMappings: no cached channels, skipping");
+                return 0;
+            }
+
+            var withStationId = channels.Where(c => !string.IsNullOrEmpty(c.ListingsChannelId)).ToList();
+            if (withStationId.Count == 0)
+            {
+                Logger.Info("SyncGuideMappings: no channels with Gracenote station IDs, skipping");
+                return 0;
+            }
+
+            ILiveTvManager liveTvManager;
+            IConfigurationManager configManager;
+            try
+            {
+                liveTvManager = _applicationHost.Resolve<ILiveTvManager>();
+                configManager = _applicationHost.Resolve<IConfigurationManager>();
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn("SyncGuideMappings: failed to resolve Emby services: {0}", ex.Message);
+                return 0;
+            }
+
+            LiveTvOptions liveTvOptions;
+            try
+            {
+                liveTvOptions = configManager.GetConfiguration("livetv") as LiveTvOptions;
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn("SyncGuideMappings: failed to read LiveTvOptions: {0}", ex.Message);
+                return 0;
+            }
+
+            if (liveTvOptions?.ListingProviders == null || liveTvOptions.ListingProviders.Length == 0)
+            {
+                Logger.Info("SyncGuideMappings: no listing providers configured, skipping");
+                return 0;
+            }
+
+            int totalMapped = 0;
+
+            foreach (var provider in liveTvOptions.ListingProviders)
+            {
+                if (string.IsNullOrEmpty(provider.Id))
+                    continue;
+
+                Logger.Info("SyncGuideMappings: syncing {0} channels to provider '{1}' (type={2}, id={3})",
+                    withStationId.Count, provider.Name ?? provider.ListingsId, provider.Type, provider.Id);
+
+                int mapped = 0;
+                int failed = 0;
+
+                foreach (var ch in withStationId)
+                {
+                    if (cancellationToken.IsCancellationRequested) break;
+
+                    try
+                    {
+                        await liveTvManager.SetChannelMapping(
+                            provider.Id, ch.Number, ch.ListingsChannelId, cancellationToken)
+                            .ConfigureAwait(false);
+                        mapped++;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (failed == 0)
+                            Logger.Warn("SyncGuideMappings: first failure for ch {0} ({1}): {2}",
+                                ch.Number, ch.Name, ex.Message);
+                        failed++;
+                    }
+                }
+
+                Logger.Info("SyncGuideMappings: provider {0}: {1} mapped, {2} failed",
+                    provider.Id, mapped, failed);
+                totalMapped += mapped;
+            }
+
+            return totalMapped;
         }
 
         /// <summary>

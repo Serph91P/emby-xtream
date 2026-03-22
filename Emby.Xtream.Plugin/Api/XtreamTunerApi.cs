@@ -148,6 +148,18 @@ namespace Emby.Xtream.Plugin.Api
         public int? Year { get; set; }
     }
 
+    [Route("/XtreamTuner/SyncGuideMappings", "POST", Summary = "Maps tuner channels to Emby Guide Data using Gracenote station IDs from Dispatcharr")]
+    public class SyncGuideMappings : IReturn<SyncGuideMappingsResult>
+    {
+    }
+
+    public class SyncGuideMappingsResult
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; }
+        public int MappedCount { get; set; }
+    }
+
     public class TestConnectionResult
     {
         public bool Success { get; set; }
@@ -1166,6 +1178,34 @@ namespace Emby.Xtream.Plugin.Api
                 }
             }
             catch { }
+        }
+
+        public async Task<object> Post(SyncGuideMappings request)
+        {
+            var result = new SyncGuideMappingsResult();
+
+            var tunerHost = XtreamTunerHost.Instance;
+            if (tunerHost == null)
+            {
+                result.Message = "Xtream tuner host is not initialized.";
+                return result;
+            }
+
+            try
+            {
+                var mapped = await tunerHost.SyncGuideMappingsAsync(CancellationToken.None).ConfigureAwait(false);
+                result.Success = true;
+                result.MappedCount = mapped;
+                result.Message = mapped > 0
+                    ? string.Format("Successfully mapped {0} channels to guide data.", mapped)
+                    : "No channels were mapped. Ensure Dispatcharr is enabled with Gracenote station IDs and a guide data provider is configured.";
+            }
+            catch (Exception ex)
+            {
+                result.Message = "Sync failed: " + ex.Message;
+            }
+
+            return result;
         }
 
         public object Get(GetSanitizedLogs request)

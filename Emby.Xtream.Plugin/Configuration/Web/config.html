@@ -1002,6 +1002,16 @@
                                 Emby Premier — the Xtream/Dispatcharr EPG feed will be used for all channels instead.
                             </div>
                         </div>
+                        <div class="inputContainer" style="margin-top:0.5em;">
+                            <button class="btnSyncGuideMappings raised button-submit" type="button" is="emby-button">
+                                <span>Sync Guide Mappings</span>
+                            </button>
+                            <span class="guideMappingResult" style="margin-left:1em;display:none;"></span>
+                            <div class="fieldDescription" style="margin-top:0.25em;">
+                                Maps tuner channels to Emby Guide Data using Gracenote station IDs from Dispatcharr.
+                                This runs automatically after a channel refresh, but you can also trigger it manually here.
+                            </div>
+                        </div>
                         <div class="inputContainer">
                             <input class="txtEpgCacheMinutes" type="number" is="emby-input"
                                    label="EPG Cache Duration (minutes)" min="5" max="1440" step="5" />

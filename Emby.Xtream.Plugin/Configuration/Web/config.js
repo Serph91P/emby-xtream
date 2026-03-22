@@ -151,6 +151,10 @@ function (BaseView, loading) {
             refreshCache(view);
         });
 
+        view.querySelector('.btnSyncGuideMappings').addEventListener('click', function () {
+            syncGuideMappings(view);
+        });
+
         // VOD category buttons (single mode)
         view.querySelector('.btnLoadVodCategories').addEventListener('click', function () {
             loadVodCategories(self);
@@ -1636,6 +1640,26 @@ function (BaseView, loading) {
             setPillResult(resultEl, true, 'Cache refreshed successfully!');
         }).catch(function () {
             setPillResult(resultEl, false, 'Failed to refresh cache.');
+        });
+    }
+
+    function syncGuideMappings(view) {
+        var btn = view.querySelector('.btnSyncGuideMappings');
+        var resultEl = view.querySelector('.guideMappingResult');
+        btn.disabled = true;
+        resultEl.style.display = '';
+        resultEl.innerHTML = '<span style="opacity:0.5;">Syncing guide mappings...</span>';
+
+        ApiClient.ajax({
+            type: 'POST',
+            url: ApiClient.getUrl('XtreamTuner/SyncGuideMappings'),
+            dataType: 'json'
+        }).then(function (result) {
+            btn.disabled = false;
+            setPillResult(resultEl, result.Success, result.Message);
+        }).catch(function () {
+            btn.disabled = false;
+            setPillResult(resultEl, false, 'Sync request failed. Check server logs.');
         });
     }
 
