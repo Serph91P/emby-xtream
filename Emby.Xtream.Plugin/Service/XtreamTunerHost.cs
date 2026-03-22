@@ -477,8 +477,8 @@ namespace Emby.Xtream.Plugin.Service
                     try
                     {
                         await Task.Delay(2000, cancellationToken).ConfigureAwait(false);
-                        var mapped = await SyncGuideMappingsAsync(cancellationToken).ConfigureAwait(false);
-                        Logger.Info("Auto guide-mapping sync completed: {0} channels mapped", mapped);
+                        var (mapped, cleared) = await SyncGuideMappingsAsync(cancellationToken).ConfigureAwait(false);
+                        Logger.Info("Auto guide-mapping sync completed: {0} mapped to Gracenote, {1} cleared for tuner EPG", mapped, cleared);
                     }
                     catch (OperationCanceledException) { }
                     catch (Exception ex)
@@ -596,25 +596,26 @@ namespace Emby.Xtream.Plugin.Service
 
         /// <summary>
         /// Programmatically maps tuner channels to Emby Guide Data (Gracenote) entries
-        /// using the station IDs from Dispatcharr. This bypasses Emby's unreliable
-        /// auto-mapping (which uses name/call-sign/number heuristics) and creates explicit
-        /// mappings via ILiveTvManager.SetChannelMapping().
+        /// using the station IDs from Dispatcharr. Channels WITH a Gracenote station ID
+        /// are mapped to the correct guide entry; channels WITHOUT one are mapped to an
+        /// empty provider channel to prevent Emby's auto-mapper from assigning a wrong
+        /// match by channel-number heuristic (which would override the tuner's Xtream EPG).
         /// </summary>
-        /// <returns>Number of channels successfully mapped.</returns>
-        public async Task<int> SyncGuideMappingsAsync(CancellationToken cancellationToken)
+        /// <returns>Tuple of (mapped to Gracenote, cleared for tuner EPG).</returns>
+        public async Task<(int Mapped, int Cleared)> SyncGuideMappingsAsync(CancellationToken cancellationToken)
         {
             var channels = _cachedChannels;
             if (channels == null || channels.Count == 0)
             {
                 Logger.Info("SyncGuideMappings: no cached channels, skipping");
-                return 0;
+                return (0, 0);
             }
 
-            var withStationId = channels.Where(c => !string.IsNullOrEmpty(c.ListingsChannelId)).ToList();
-            if (withStationId.Count == 0)
+            var gracenoteCount = channels.Count(c => !string.IsNullOrEmpty(c.ListingsChannelId));
+            if (gracenoteCount == 0)
             {
                 Logger.Info("SyncGuideMappings: no channels with Gracenote station IDs, skipping");
-                return 0;
+                return (0, 0);
             }
 
             ILiveTvManager liveTvManager;
@@ -627,7 +628,7 @@ namespace Emby.Xtream.Plugin.Service
             catch (Exception ex)
             {
                 Logger.Warn("SyncGuideMappings: failed to resolve Emby services: {0}", ex.Message);
-                return 0;
+                return (0, 0);
             }
 
             LiveTvOptions liveTvOptions;
@@ -638,38 +639,47 @@ namespace Emby.Xtream.Plugin.Service
             catch (Exception ex)
             {
                 Logger.Warn("SyncGuideMappings: failed to read LiveTvOptions: {0}", ex.Message);
-                return 0;
+                return (0, 0);
             }
 
             if (liveTvOptions?.ListingProviders == null || liveTvOptions.ListingProviders.Length == 0)
             {
                 Logger.Info("SyncGuideMappings: no listing providers configured, skipping");
-                return 0;
+                return (0, 0);
             }
 
             int totalMapped = 0;
+            int totalCleared = 0;
 
             foreach (var provider in liveTvOptions.ListingProviders)
             {
                 if (string.IsNullOrEmpty(provider.Id))
                     continue;
 
-                Logger.Info("SyncGuideMappings: syncing {0} channels to provider '{1}' (type={2}, id={3})",
-                    withStationId.Count, provider.Name ?? provider.ListingsId, provider.Type, provider.Id);
+                Logger.Info("SyncGuideMappings: syncing {0} channels ({1} with Gracenote ID) to provider '{2}' (type={3}, id={4})",
+                    channels.Count, gracenoteCount, provider.Name ?? provider.ListingsId, provider.Type, provider.Id);
 
                 int mapped = 0;
+                int cleared = 0;
                 int failed = 0;
 
-                foreach (var ch in withStationId)
+                foreach (var ch in channels)
                 {
                     if (cancellationToken.IsCancellationRequested) break;
+
+                    var hasStationId = !string.IsNullOrEmpty(ch.ListingsChannelId);
+                    var providerChannelId = hasStationId ? ch.ListingsChannelId : string.Empty;
 
                     try
                     {
                         await liveTvManager.SetChannelMapping(
-                            provider.Id, ch.Number, ch.ListingsChannelId, cancellationToken)
+                            provider.Id, ch.Number, providerChannelId, cancellationToken)
                             .ConfigureAwait(false);
-                        mapped++;
+
+                        if (hasStationId)
+                            mapped++;
+                        else
+                            cleared++;
                     }
                     catch (Exception ex)
                     {
@@ -680,12 +690,13 @@ namespace Emby.Xtream.Plugin.Service
                     }
                 }
 
-                Logger.Info("SyncGuideMappings: provider {0}: {1} mapped, {2} failed",
-                    provider.Id, mapped, failed);
+                Logger.Info("SyncGuideMappings: provider {0}: {1} mapped to Gracenote, {2} cleared (using tuner EPG), {3} failed",
+                    provider.Id, mapped, cleared, failed);
                 totalMapped += mapped;
+                totalCleared += cleared;
             }
 
-            return totalMapped;
+            return (totalMapped, totalCleared);
         }
 
         /// <summary>

@@ -158,6 +158,7 @@ namespace Emby.Xtream.Plugin.Api
         public bool Success { get; set; }
         public string Message { get; set; }
         public int MappedCount { get; set; }
+        public int ClearedCount { get; set; }
     }
 
     public class TestConnectionResult
@@ -1193,11 +1194,12 @@ namespace Emby.Xtream.Plugin.Api
 
             try
             {
-                var mapped = await tunerHost.SyncGuideMappingsAsync(CancellationToken.None).ConfigureAwait(false);
+                var (mapped, cleared) = await tunerHost.SyncGuideMappingsAsync(CancellationToken.None).ConfigureAwait(false);
                 result.Success = true;
                 result.MappedCount = mapped;
-                result.Message = mapped > 0
-                    ? string.Format("Successfully mapped {0} channels to guide data.", mapped)
+                result.ClearedCount = cleared;
+                result.Message = mapped > 0 || cleared > 0
+                    ? string.Format("{0} channels mapped to Gracenote, {1} cleared for tuner EPG.", mapped, cleared)
                     : "No channels were mapped. Ensure Dispatcharr is enabled with Gracenote station IDs and a guide data provider is configured.";
             }
             catch (Exception ex)
