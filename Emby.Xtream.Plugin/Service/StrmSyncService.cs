@@ -26,6 +26,9 @@ namespace Emby.Xtream.Plugin.Service
         public int Added;
         public int Deleted;
         public bool IsRunning;
+
+        /// <summary>Set when sync exits early (e.g. invalid folder configuration).</summary>
+        public string AbortReason = string.Empty;
     }
 
     public class SyncHistoryEntry
@@ -266,6 +269,20 @@ namespace Emby.Xtream.Plugin.Service
             {
                 EnsureStrmLibraryPath(config.StrmLibraryPath);
 
+                var folderMappings = FolderMappingParser.Parse(config.MovieFolderMappings);
+                if (string.Equals(config.MovieFolderMode, "custom", StringComparison.OrdinalIgnoreCase) &&
+                    folderMappings.Count == 0)
+                {
+                    movieSyncSuccess = false;
+                    _movieProgress.AbortReason =
+                        "Multiple Folders mode is on but no categories are assigned to any folder. " +
+                        "Click + Add Folder, name it, use Refresh Categories, tick the VOD categories for that folder, then save plugin settings. " +
+                        "Or switch back to Single Folder to use the flat category list.";
+                    _movieProgress.Phase = "Configuration needed";
+                    _logger.Warn("Movie sync aborted: {0}", _movieProgress.AbortReason);
+                    return;
+                }
+
                 var categoryNames = new Dictionary<int, string>();
 
                 // Fetch category names if needed for folder organization
@@ -278,8 +295,6 @@ namespace Emby.Xtream.Plugin.Service
                         categoryNames[cat.CategoryId] = cat.CategoryName;
                     }
                 }
-
-                var folderMappings = FolderMappingParser.Parse(config.MovieFolderMappings);
 
                 // Fetch streams for selected categories
                 _movieProgress.Phase = "Fetching VOD streams";
@@ -558,7 +573,10 @@ namespace Emby.Xtream.Plugin.Service
             finally
             {
                 _movieProgress.IsRunning = false;
-                _movieProgress.Phase = "Complete";
+                if (string.IsNullOrEmpty(_movieProgress.AbortReason))
+                {
+                    _movieProgress.Phase = "Complete";
+                }
 
                 AddHistoryEntry(new SyncHistoryEntry
                 {
@@ -592,6 +610,20 @@ namespace Emby.Xtream.Plugin.Service
             {
                 EnsureStrmLibraryPath(config.StrmLibraryPath);
 
+                var folderMappings = FolderMappingParser.Parse(config.SeriesFolderMappings);
+                if (string.Equals(config.SeriesFolderMode, "custom", StringComparison.OrdinalIgnoreCase) &&
+                    folderMappings.Count == 0)
+                {
+                    seriesSyncSuccess = false;
+                    _seriesProgress.AbortReason =
+                        "Multiple Folders mode is on but no categories are assigned to any folder. " +
+                        "Click + Add Folder, name it, use Refresh Categories, tick the series categories for that folder, then save plugin settings. " +
+                        "Or switch back to Single Folder to use the flat category list.";
+                    _seriesProgress.Phase = "Configuration needed";
+                    _logger.Warn("Series sync aborted: {0}", _seriesProgress.AbortReason);
+                    return;
+                }
+
                 var categoryNames = new Dictionary<int, string>();
 
                 if (!string.Equals(config.SeriesFolderMode, "single", StringComparison.OrdinalIgnoreCase))
@@ -603,8 +635,6 @@ namespace Emby.Xtream.Plugin.Service
                         categoryNames[cat.CategoryId] = cat.CategoryName;
                     }
                 }
-
-                var folderMappings = FolderMappingParser.Parse(config.SeriesFolderMappings);
 
                 // Parse TVDb overrides once before the loop
                 var tvdbOverrides = config.EnableSeriesIdFolderNaming
@@ -960,7 +990,10 @@ namespace Emby.Xtream.Plugin.Service
             finally
             {
                 _seriesProgress.IsRunning = false;
-                _seriesProgress.Phase = "Complete";
+                if (string.IsNullOrEmpty(_seriesProgress.AbortReason))
+                {
+                    _seriesProgress.Phase = "Complete";
+                }
 
                 AddHistoryEntry(new SyncHistoryEntry
                 {

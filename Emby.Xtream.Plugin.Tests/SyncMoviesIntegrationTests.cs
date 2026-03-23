@@ -265,5 +265,25 @@ namespace Emby.Xtream.Plugin.Tests
             Assert.Empty(files);
             Assert.Equal(0, SaveConfigCallCount);
         }
+
+        /// <summary>
+        /// Multiple Folders (<c>custom</c>) with no category→folder mappings used to fetch every VOD
+        /// stream then skip each one — confusing UX. Abort early with no HTTP calls.
+        /// </summary>
+        [Fact]
+        public async Task CustomMode_EmptyMappings_AbortsWithoutHttp()
+        {
+            var config = DefaultConfig();
+            config.MovieFolderMode = "custom";
+            config.MovieFolderMappings = string.Empty;
+
+            var svc = MakeService();
+            await svc.SyncMoviesAsync(config, None, SaveConfig);
+
+            Assert.Empty(Handler.ReceivedUrls);
+            Assert.False(string.IsNullOrEmpty(svc.MovieProgress.AbortReason));
+            Assert.Equal(0, svc.MovieProgress.Total);
+            Assert.Equal(0, SaveConfigCallCount);
+        }
     }
 }

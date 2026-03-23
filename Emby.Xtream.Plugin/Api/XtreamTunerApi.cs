@@ -396,12 +396,24 @@ namespace Emby.Xtream.Plugin.Api
                     CancellationToken.None,
                     () => Plugin.Instance.SaveConfiguration()).ConfigureAwait(false);
                 var progress = syncService.MovieProgress;
-                result.Success = true;
-                result.Message = "Movie sync completed.";
-                result.Total = progress.Total;
-                result.Completed = progress.Completed;
-                result.Skipped = progress.Skipped;
-                result.Failed = progress.Failed;
+                if (!string.IsNullOrEmpty(progress.AbortReason))
+                {
+                    result.Success = false;
+                    result.Message = progress.AbortReason;
+                    result.Total = progress.Total;
+                    result.Completed = progress.Completed;
+                    result.Skipped = progress.Skipped;
+                    result.Failed = progress.Failed;
+                }
+                else
+                {
+                    result.Success = true;
+                    result.Message = "Movie sync completed.";
+                    result.Total = progress.Total;
+                    result.Completed = progress.Completed;
+                    result.Skipped = progress.Skipped;
+                    result.Failed = progress.Failed;
+                }
             }
             catch (Exception ex)
             {
@@ -439,12 +451,24 @@ namespace Emby.Xtream.Plugin.Api
                     CancellationToken.None,
                     () => Plugin.Instance.SaveConfiguration()).ConfigureAwait(false);
                 var progress = syncService.SeriesProgress;
-                result.Success = true;
-                result.Message = "Series sync completed.";
-                result.Total = progress.Total;
-                result.Completed = progress.Completed;
-                result.Skipped = progress.Skipped;
-                result.Failed = progress.Failed;
+                if (!string.IsNullOrEmpty(progress.AbortReason))
+                {
+                    result.Success = false;
+                    result.Message = progress.AbortReason;
+                    result.Total = progress.Total;
+                    result.Completed = progress.Completed;
+                    result.Skipped = progress.Skipped;
+                    result.Failed = progress.Failed;
+                }
+                else
+                {
+                    result.Success = true;
+                    result.Message = "Series sync completed.";
+                    result.Total = progress.Total;
+                    result.Completed = progress.Completed;
+                    result.Skipped = progress.Skipped;
+                    result.Failed = progress.Failed;
+                }
             }
             catch (Exception ex)
             {

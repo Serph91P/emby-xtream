@@ -612,6 +612,24 @@ function (BaseView, loading) {
         view.querySelector(multiClass).style.display   = isMulti ? 'block' : 'none';
         view.querySelector(listClass).style.display    = isMulti ? ''      : 'none';
         view.querySelector(addBtnClass).style.display  = isMulti ? ''      : 'none';
+        updateMultiFolderEmptyHints(view);
+    }
+
+    function updateMultiFolderEmptyHints(view) {
+        function one(type) {
+            var selClass = type === 'movie' ? '.selMovieFolderMode' : '.selSeriesFolderMode';
+            var listClass = type === 'movie' ? '.movieFoldersList' : '.seriesFoldersList';
+            var hintClass = type === 'movie' ? '.movieMultiFolderEmptyHint' : '.seriesMultiFolderEmptyHint';
+            var mode = view.querySelector(selClass).value;
+            var list = view.querySelector(listClass);
+            var hint = view.querySelector(hintClass);
+            if (!hint || !list) return;
+            var isMulti = mode === 'custom';
+            var hasCards = list.querySelectorAll('.folderCard').length > 0;
+            hint.style.display = (isMulti && !hasCards) ? 'block' : 'none';
+        }
+        one('movie');
+        one('series');
     }
 
     function updateAutoSyncVisibility(v) {
@@ -680,6 +698,7 @@ function (BaseView, loading) {
         removeBtn.style.cssText = 'background:#c0392b; color:white; border:none; border-radius:4px; padding:0.5em 1em; cursor:pointer; font-size:0.9em;';
         removeBtn.addEventListener('click', function () {
             card.parentNode.removeChild(card);
+            updateMultiFolderEmptyHints(view);
         });
 
         header.appendChild(nameInput);
@@ -701,6 +720,7 @@ function (BaseView, loading) {
 
         card.appendChild(catContainer);
         list.appendChild(card);
+        updateMultiFolderEmptyHints(view);
     }
 
     function renderFolderCardCategories(container, categories, checkedIdsStr) {

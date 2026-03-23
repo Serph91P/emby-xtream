@@ -464,5 +464,21 @@ namespace Emby.Xtream.Plugin.Tests
             Assert.Equal("http://fake-xtream/series/user/pass/101.mp4", File.ReadAllText(s1e1));
             Assert.Equal("http://fake-xtream/series/user/pass/201.mp4", File.ReadAllText(s2e1));
         }
+
+        [Fact]
+        public async Task CustomMode_EmptyMappings_AbortsWithoutHttp()
+        {
+            var config = DefaultConfig();
+            config.SeriesFolderMode = "custom";
+            config.SeriesFolderMappings = string.Empty;
+
+            var svc = MakeService();
+            await svc.SyncSeriesAsync(config, None, SaveConfig);
+
+            Assert.Empty(Handler.ReceivedUrls);
+            Assert.False(string.IsNullOrEmpty(svc.SeriesProgress.AbortReason));
+            Assert.Equal(0, svc.SeriesProgress.Total);
+            Assert.Equal(0, SaveConfigCallCount);
+        }
     }
 }
