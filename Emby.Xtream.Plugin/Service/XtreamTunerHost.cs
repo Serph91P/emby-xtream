@@ -47,7 +47,6 @@ namespace Emby.Xtream.Plugin.Service
         private volatile HashSet<int> _allowedStreamIds;
         private List<ChannelInfo> _cachedChannels;
         private DateTime _cacheTime = DateTime.MinValue;
-        private int _deferredArtworkClearPending;
 
         public int CachedChannelCount => _cachedChannels?.Count ?? 0;
 
@@ -753,32 +752,7 @@ namespace Emby.Xtream.Plugin.Service
             // Running on every call catches images that arrived after a previous clear.
             ClearWrongChannelArtwork();
 
-            // Schedule a deferred second pass to catch artwork that Emby downloads after
-            // this method returns (image download phase runs after channel refresh).
-            ScheduleDeferredArtworkClear();
-
             return updated;
-        }
-
-        /// <summary>
-        /// Schedules a deferred artwork clear 30 seconds after the last call. Uses
-        /// Interlocked to coalesce multiple rapid detach calls into a single pass.
-        /// The delay gives Emby's image-download phase time to finish so the clear
-        /// catches artwork that arrived after the immediate clear.
-        /// </summary>
-        private void ScheduleDeferredArtworkClear()
-        {
-            var token = Interlocked.Increment(ref _deferredArtworkClearPending);
-            _ = Task.Run(async () =>
-            {
-                await Task.Delay(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
-
-                if (Volatile.Read(ref _deferredArtworkClearPending) != token)
-                    return;
-
-                Logger.Info("Deferred artwork clear: running second pass after 30s delay");
-                ClearWrongChannelArtwork();
-            });
         }
 
         /// <summary>
