@@ -297,6 +297,18 @@ namespace Emby.Xtream.Plugin.Service
                 var cachedGracenote = _cachedChannels.Count(c => c.ListingsChannelId != null);
                 Logger.Debug("Returning cached channel list ({0} channels, {1} with Gracenote station ID)",
                     _cachedChannels.Count, cachedGracenote);
+
+                // Run detach+artwork-clear even on cache hits so that "Refresh Guide Data"
+                // always triggers it, not just when the 5-minute channel cache expires.
+                if (config.DeferEpgToGuideData && cachedGracenote > 0)
+                {
+                    _ = Task.Run(() =>
+                    {
+                        try { DetachListingProviders(); }
+                        catch (Exception ex) { Logger.Warn("Auto detach (cache hit) failed: {0}", ex.Message); }
+                    });
+                }
+
                 return _cachedChannels;
             }
 
@@ -833,50 +845,64 @@ namespace Emby.Xtream.Plugin.Service
                     return;
                 }
 
-                var stationMap = _stationIdMap;
+                // Build a lookup of Xtream channel numbers for ownership check.
+                // ServiceName on LiveTvChannel is set by Emby's internal service layer
+                // (typically "Emby"), not the tuner host Name, so we can't filter on it.
+                var cachedChannels = _cachedChannels;
+                if (cachedChannels == null || cachedChannels.Count == 0)
+                {
+                    Logger.Info("ClearWrongChannelArtwork: no cached channels — skipping");
+                    return;
+                }
+
+                var xtreamChannelNumbers = new HashSet<string>(StringComparer.Ordinal);
+                var gracenoteChannelNumbers = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var ch in cachedChannels)
+                {
+                    if (!string.IsNullOrEmpty(ch.Number))
+                    {
+                        xtreamChannelNumbers.Add(ch.Number);
+                        if (!string.IsNullOrEmpty(ch.ListingsChannelId))
+                            gracenoteChannelNumbers.Add(ch.Number);
+                    }
+                }
+
                 int cleared = 0;
                 int skipped = 0;
+                int noImages = 0;
+                int totalLibraryChannels = 0;
 
                 foreach (var item in items)
                 {
                     try
                     {
-                        // Only clear channels belonging to the Xtream tuner
-                        var serviceNameProp = item.GetType().GetProperty("ServiceName");
-                        var serviceName = serviceNameProp?.GetValue(item) as string;
-                        if (!string.Equals(serviceName, Name, StringComparison.OrdinalIgnoreCase))
-                            continue;
+                        totalLibraryChannels++;
 
-                        // Keep artwork for channels that have a Gracenote station ID
-                        var tunerChannelIdProp = item.GetType().GetProperty("ExternalId")
-                            ?? item.GetType().GetProperty("ExternalServiceId");
-                        // Use channel number to look up stream ID via cached channels
                         var numberProp = item.GetType().GetProperty("Number");
                         var channelNumber = numberProp?.GetValue(item) as string;
 
-                        bool hasStationId = false;
-                        if (!string.IsNullOrEmpty(channelNumber) && _cachedChannels != null)
-                        {
-                            var cached = _cachedChannels.Find(c => c.Number == channelNumber);
-                            if (cached != null && !string.IsNullOrEmpty(cached.ListingsChannelId))
-                                hasStationId = true;
-                        }
+                        if (string.IsNullOrEmpty(channelNumber) || !xtreamChannelNumbers.Contains(channelNumber))
+                            continue;
 
-                        if (hasStationId)
+                        if (gracenoteChannelNumbers.Contains(channelNumber))
                         {
                             skipped++;
                             continue;
                         }
 
-                        // Clear all images for this channel
                         var imageInfosProp = item.GetType().GetProperty("ImageInfos");
                         var imageInfos = imageInfosProp?.GetValue(item) as System.Array;
                         if (imageInfos == null || imageInfos.Length == 0)
+                        {
+                            noImages++;
                             continue;
+                        }
+
+                        var nameProp = item.GetType().GetProperty("Name");
+                        var channelName = nameProp?.GetValue(item) as string ?? channelNumber;
 
                         imageInfosProp.SetValue(item, Array.CreateInstance(imageInfos.GetType().GetElementType(), 0));
 
-                        // Use UpdateItem(item, parent, updateReason) — ItemUpdateType.ImageUpdate = 4
                         var updateMethods = typeof(ILibraryManager).GetMethods()
                             .Where(m => m.Name == "UpdateItem" && m.GetParameters().Length == 3)
                             .ToArray();
@@ -886,6 +912,8 @@ namespace Emby.Xtream.Plugin.Service
                             updateMethods[0].Invoke(libraryManager, new object[] { item, null, 4 });
                         }
 
+                        Logger.Debug("ClearWrongChannelArtwork: cleared {0} image(s) from '{1}' (ch {2})",
+                            imageInfos.Length, channelName, channelNumber);
                         cleared++;
                     }
                     catch (Exception ex)
@@ -894,8 +922,8 @@ namespace Emby.Xtream.Plugin.Service
                     }
                 }
 
-                Logger.Info("ClearWrongChannelArtwork: cleared artwork for {0} channels, kept {1} (have Gracenote IDs)",
-                    cleared, skipped);
+                Logger.Info("ClearWrongChannelArtwork: {0} library channels, {1} matched Xtream, cleared {2}, kept {3} (Gracenote), {4} already clean",
+                    totalLibraryChannels, cleared + skipped + noImages, cleared, skipped, noImages);
             }
             catch (Exception ex)
             {
