@@ -860,10 +860,10 @@ namespace Emby.Xtream.Plugin.Service
                     return;
                 }
 
-                // Build a lookup of Xtream channel numbers for ownership check.
+                // Build lookups for Xtream channel ownership checks.
                 // ServiceName on LiveTvChannel is set by Emby's internal service layer
                 // (typically "Emby"), not the tuner host Name, so we can't filter on it.
-                var cachedChannels = _cachedChannels;
+                var cachedChannels = GetChannelsForArtworkCleanup();
                 if (cachedChannels == null || cachedChannels.Count == 0)
                 {
                     Logger.Info("ClearWrongChannelArtwork: no cached channels - skipping");
@@ -871,10 +871,18 @@ namespace Emby.Xtream.Plugin.Service
                 }
 
                 var xtreamChannelNumbers = new HashSet<string>(StringComparer.Ordinal);
+                var xtreamChannelNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var ch in cachedChannels)
                 {
                     if (!string.IsNullOrEmpty(ch.Number))
+                    {
                         xtreamChannelNumbers.Add(ch.Number);
+                    }
+
+                    if (!string.IsNullOrEmpty(ch.Name))
+                    {
+                        xtreamChannelNames.Add(ch.Name);
+                    }
                 }
 
                 int cleared = 0;
@@ -889,8 +897,12 @@ namespace Emby.Xtream.Plugin.Service
 
                         var numberProp = item.GetType().GetProperty("Number");
                         var channelNumber = numberProp?.GetValue(item) as string;
+                        var nameProp = item.GetType().GetProperty("Name");
+                        var channelName = nameProp?.GetValue(item) as string;
 
-                        if (string.IsNullOrEmpty(channelNumber) || !xtreamChannelNumbers.Contains(channelNumber))
+                        var numberMatch = !string.IsNullOrEmpty(channelNumber) && xtreamChannelNumbers.Contains(channelNumber);
+                        var nameMatch = !string.IsNullOrEmpty(channelName) && xtreamChannelNames.Contains(channelName);
+                        if (!numberMatch && !nameMatch)
                             continue;
 
                         var imageInfosProp = item.GetType().GetProperty("ImageInfos");
@@ -901,8 +913,7 @@ namespace Emby.Xtream.Plugin.Service
                             continue;
                         }
 
-                        var nameProp = item.GetType().GetProperty("Name");
-                        var channelName = nameProp?.GetValue(item) as string ?? channelNumber;
+                        channelName = channelName ?? channelNumber;
 
                         imageInfosProp.SetValue(item, Array.CreateInstance(imageInfos.GetType().GetElementType(), 0));
 
@@ -932,6 +943,64 @@ namespace Emby.Xtream.Plugin.Service
             {
                 Logger.Warn("ClearWrongChannelArtwork: {0}", ex.Message);
             }
+        }
+
+        private List<ChannelInfo> GetChannelsForArtworkCleanup()
+        {
+            var cachedChannels = _cachedChannels;
+            if (cachedChannels != null && cachedChannels.Count > 0)
+            {
+                return cachedChannels;
+            }
+
+            Logger.Info("ClearWrongChannelArtwork: no cached channels, attempting one-time reload for cleanup");
+
+            try
+            {
+                var configManager = _applicationHost.Resolve<IConfigurationManager>();
+                var liveTvOptions = configManager.GetConfiguration("livetv") as LiveTvOptions;
+                if (liveTvOptions?.TunerHosts == null)
+                {
+                    return null;
+                }
+
+                var xtreamTuner = liveTvOptions.TunerHosts.FirstOrDefault(t =>
+                    string.Equals(t.Type, TunerType, StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrEmpty(t.Id));
+
+                if (xtreamTuner == null)
+                {
+                    Logger.Info("ClearWrongChannelArtwork: no Xtream tuner host found in LiveTvOptions");
+                    return null;
+                }
+
+                return GetChannelsInternal(xtreamTuner, CancellationToken.None)
+                    .ConfigureAwait(false)
+                    .GetAwaiter()
+                    .GetResult();
+            }
+            catch (InvalidOperationException ex)
+            {
+                Logger.Warn("ClearWrongChannelArtwork: channel reload failed: {0}", ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                Logger.Warn("ClearWrongChannelArtwork: channel reload failed: {0}", ex.Message);
+            }
+            catch (HttpRequestException ex)
+            {
+                Logger.Warn("ClearWrongChannelArtwork: channel reload failed: {0}", ex.Message);
+            }
+            catch (TaskCanceledException ex)
+            {
+                Logger.Warn("ClearWrongChannelArtwork: channel reload timed out: {0}", ex.Message);
+            }
+            catch (OperationCanceledException ex)
+            {
+                Logger.Warn("ClearWrongChannelArtwork: channel reload canceled: {0}", ex.Message);
+            }
+
+            return null;
         }
 
         /// <summary>
