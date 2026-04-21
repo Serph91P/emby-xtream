@@ -214,7 +214,14 @@ namespace Emby.Xtream.Plugin.Service
                         }
                         if (_seriesInfoType != null) break;
                     }
-                    catch (Exception) { }
+                    catch (ReflectionTypeLoadException ex)
+                    {
+                        _logger.Debug("TVDb lookup: type scan failed in '{0}': {1}", asm.FullName, ex.Message);
+                    }
+                    catch (NotSupportedException ex)
+                    {
+                        _logger.Debug("TVDb lookup: type scan unsupported in '{0}': {1}", asm.FullName, ex.Message);
+                    }
                 }
 
                 if (_seriesInfoType == null)
@@ -295,7 +302,14 @@ namespace Emby.Xtream.Plugin.Service
                         }
                         if (_movieInfoType != null) break;
                     }
-                    catch (Exception) { }
+                    catch (ReflectionTypeLoadException ex)
+                    {
+                        _logger.Debug("TMDB fallback: type scan failed in '{0}': {1}", asm.FullName, ex.Message);
+                    }
+                    catch (NotSupportedException ex)
+                    {
+                        _logger.Debug("TMDB fallback: type scan unsupported in '{0}': {1}", asm.FullName, ex.Message);
+                    }
                 }
 
                 if (_movieInfoType == null)
