@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: |
+          dotnet restore Emby.Xtream.Plugin/Emby.Xtream.Plugin.csproj
+          dotnet restore Emby.Xtream.Plugin.Tests/Emby.Xtream.Plugin.Tests.csproj
+
+      - name: Build
+        run: |
+          dotnet build --no-restore --configuration Release Emby.Xtream.Plugin/Emby.Xtream.Plugin.csproj
+          dotnet build --no-restore --configuration Release Emby.Xtream.Plugin.Tests/Emby.Xtream.Plugin.Tests.csproj
+
+      - name: Test
+        run: dotnet test --no-build --configuration Release --verbosity normal Emby.Xtream.Plugin.Tests/Emby.Xtream.Plugin.Tests.csproj
+
+  codeql:
+    name: CodeQL Security Analysis
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
+          queries: security-and-quality
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build for CodeQL
+        run: |
+          dotnet build --configuration Release Emby.Xtream.Plugin/Emby.Xtream.Plugin.csproj
+          dotnet build --configuration Release Emby.Xtream.Plugin.Tests/Emby.Xtream.Plugin.Tests.csproj
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:csharp
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
