@@ -725,7 +725,7 @@ function (BaseView, loading) {
     }
 
     function initSettingsCollapsibles(view) {
-        var detailsList = view.querySelectorAll('.tabGeneric details[data-collapse-key]');
+        var detailsList = view.querySelectorAll('.tabPanel details[data-collapse-key]');
         for (var i = 0; i < detailsList.length; i++) {
             (function (detailsEl) {
                 var key = detailsEl.getAttribute('data-collapse-key');
