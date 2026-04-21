@@ -27,13 +27,17 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore dependencies
-        run: dotnet restore
+        run: |
+          dotnet restore Emby.Xtream.Plugin/Emby.Xtream.Plugin.csproj
+          dotnet restore Emby.Xtream.Plugin.Tests/Emby.Xtream.Plugin.Tests.csproj
 
       - name: Build
-        run: dotnet build --no-restore --configuration Release
+        run: |
+          dotnet build --no-restore --configuration Release Emby.Xtream.Plugin/Emby.Xtream.Plugin.csproj
+          dotnet build --no-restore --configuration Release Emby.Xtream.Plugin.Tests/Emby.Xtream.Plugin.Tests.csproj
 
       - name: Test
-        run: dotnet test --no-build --configuration Release --verbosity normal
+        run: dotnet test --no-build --configuration Release --verbosity normal Emby.Xtream.Plugin.Tests/Emby.Xtream.Plugin.Tests.csproj
 
   codeql:
     name: CodeQL Security Analysis
@@ -55,7 +59,9 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Build for CodeQL
-        run: dotnet build --configuration Release
+        run: |
+          dotnet build --configuration Release Emby.Xtream.Plugin/Emby.Xtream.Plugin.csproj
+          dotnet build --configuration Release Emby.Xtream.Plugin.Tests/Emby.Xtream.Plugin.Tests.csproj
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
