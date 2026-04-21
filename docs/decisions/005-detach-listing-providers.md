@@ -10,7 +10,7 @@
 
 Users with Dispatcharr and Channel Identifiarr can assign Gracenote station IDs (`tvc_guide_stationid`) to their IPTV channels. When "Use Emby Guide Data" is enabled, the plugin should use Gracenote EPG for channels that have station IDs and Xtream EPG for channels that don't.
 
-The challenge is Emby's auto-mapping behaviour: when a listing provider (Gracenote lineup) covers a tuner, Emby automatically maps every channel to the closest Gracenote station using name, call sign, and channel number heuristics. These heuristic matches are frequently wrong — e.g. CBS channel 116 gets mapped to VICE (Gracenote station 18822) because VICE happens to be channel 116 in the Gracenote lineup.
+The challenge is Emby's auto-mapping behaviour: when a listing provider (Gracenote lineup) covers a tuner, Emby automatically maps every channel to the closest Gracenote station using name, call sign, and channel number heuristics. These heuristic matches are frequently wrong - e.g. CBS channel 116 gets mapped to VICE (Gracenote station 18822) because VICE happens to be channel 116 in the Gracenote lineup.
 
 ## Problem
 
@@ -30,7 +30,7 @@ For channels without Gracenote IDs, explicitly mapped them to an empty `provider
 
 **Result**: Failed. Emby still auto-mapped these channels on the next refresh cycle. The empty mapping didn't persist.
 
-### 3. Detach listing providers + direct fetch (v1.4.61) — ADOPTED
+### 3. Detach listing providers + direct fetch (v1.4.61) - ADOPTED
 
 Remove the Xtream tuner from all listing provider associations entirely, then fetch Gracenote programs directly from within `GetProgramsInternal()`.
 
@@ -89,7 +89,7 @@ Emby has two user-facing ways to refresh guide data, and they trigger different 
 
 "Refresh Guide" runs the full pipeline: channel scan (`GetChannelsInternal`) followed by per-channel EPG fetch (`GetProgramsInternal`). Since `DetachListingProviders()` is called from `GetChannelsInternal`, this path reliably triggers the detach and artwork clear.
 
-"Refresh Guide Data" may use a lighter code path that skips the channel scan phase entirely. Prior to v1.4.69, the plugin had a fallback `DetachListingProviders()` call inside `GetProgramsInternal` to cover this case. This caused duplicate execution during normal guide refreshes (detach + artwork clear fired twice). Since artwork clearing only matters on the initial detach (a one-time config change), the fallback was removed — the small risk of missing the detach on the lighter path is acceptable because it will fire on the next full refresh.
+"Refresh Guide Data" may use a lighter code path that skips the channel scan phase entirely. Prior to v1.4.69, the plugin had a fallback `DetachListingProviders()` call inside `GetProgramsInternal` to cover this case. This caused duplicate execution during normal guide refreshes (detach + artwork clear fired twice). Since artwork clearing only matters on the initial detach (a one-time config change), the fallback was removed - the small risk of missing the detach on the lighter path is acceptable because it will fire on the next full refresh.
 
 ## Related
 

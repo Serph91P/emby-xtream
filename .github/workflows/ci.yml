@@ -4,9 +4,14 @@ on:
   push:
     branches:
       - main
+      - 'feature/**'
+      - 'fix/**'
+      - 'copilot/**'
+      - develop
   pull_request:
     branches:
       - main
+      - develop
 
 permissions:
   contents: read
@@ -19,10 +24,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
@@ -37,7 +42,14 @@ jobs:
           dotnet build --no-restore --configuration Release Emby.Xtream.Plugin.Tests/Emby.Xtream.Plugin.Tests.csproj
 
       - name: Test
-        run: dotnet test --no-build --configuration Release --verbosity normal Emby.Xtream.Plugin.Tests/Emby.Xtream.Plugin.Tests.csproj
+        run: dotnet test --no-build --configuration Release --verbosity normal --logger "trx;LogFileName=test-results.trx" Emby.Xtream.Plugin.Tests/Emby.Xtream.Plugin.Tests.csproj
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: '**/*.trx'
 
   codeql:
     name: CodeQL Security Analysis
@@ -45,16 +57,16 @@ jobs:
     needs: build-and-test
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: csharp
           queries: security-and-quality
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
@@ -64,7 +76,7 @@ jobs:
           dotnet build --configuration Release Emby.Xtream.Plugin.Tests/Emby.Xtream.Plugin.Tests.csproj
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: /language:csharp
 
@@ -74,9 +86,10 @@ jobs:
     if: github.event_name == 'pull_request'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Dependency Review
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: moderate
+

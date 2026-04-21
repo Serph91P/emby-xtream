@@ -268,7 +268,7 @@ namespace Emby.Xtream.Plugin.Tests
 
         /// <summary>
         /// Multiple Folders (<c>custom</c>) with no category→folder mappings used to fetch every VOD
-        /// stream then skip each one — confusing UX. Abort early with no HTTP calls.
+        /// stream then skip each one - confusing UX. Abort early with no HTTP calls.
         /// </summary>
         [Fact]
         public async Task CustomMode_EmptyMappings_AbortsWithoutHttp()

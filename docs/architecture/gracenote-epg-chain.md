@@ -8,22 +8,22 @@ How Gracenote guide data flows from a local station database through five applic
 
 ### Gracenote Database (SQLite, local)
 
-A proprietary SQLite database containing Gracenote station metadata: station IDs, names, call signs, logos, and lineup definitions (which stations belong to which cable/satellite/OTA package). This database is **not** provided by any of the tools — users obtain it from community sources or build their own.
+A proprietary SQLite database containing Gracenote station metadata: station IDs, names, call signs, logos, and lineup definitions (which stations belong to which cable/satellite/OTA package). This database is **not** provided by any of the tools - users obtain it from community sources or build their own.
 
 Used **only at setup time** by Channel Identifiarr for matching channel names to station IDs. Not used at runtime for EPG data.
 
 Key tables:
-- `stations` — `station_id`, `name`, `call_sign`, `language`, `logo_uri`
-- `station_lineups` — `station_id` → `lineup_id`, `channel_number`, `video_type`
-- `lineups` — `lineup_id`, `name`, `type` (OTA/Cable/Satellite/VMVPD), `location`
+- `stations` - `station_id`, `name`, `call_sign`, `language`, `logo_uri`
+- `station_lineups` - `station_id` → `lineup_id`, `channel_number`, `video_type`
+- `lineups` - `lineup_id`, `name`, `type` (OTA/Cable/Satellite/VMVPD), `location`
 
 ### Channel Identifiarr (Web App)
 
 A Docker-based web application ([GitHub](https://github.com/egyptiangio/channelidentifiarr)) that bridges the Gracenote database with Dispatcharr and Emby. It has **two distinct integration points**:
 
-**Role A — Enriches Dispatcharr**: Writes `tvc_guide_stationid` (the Gracenote station ID) to each Dispatcharr channel via `PATCH /api/channels/channels/{id}/`. This is the per-channel matching — "ESPN2 HD is Gracenote station 45507."
+**Role A - Enriches Dispatcharr**: Writes `tvc_guide_stationid` (the Gracenote station ID) to each Dispatcharr channel via `PATCH /api/channels/channels/{id}/`. This is the per-channel matching - "ESPN2 HD is Gracenote station 45507."
 
-**Role B — Adds listing providers to Emby**: Calls `POST /emby/LiveTv/ListingProviders` to register Gracenote lineups (type `embygn`) directly in Emby. Without this step, Emby has no Gracenote data source to query. The `scan-missing-listings` feature uses a greedy set-cover algorithm to find the minimum set of lineups that cover all stations.
+**Role B - Adds listing providers to Emby**: Calls `POST /emby/LiveTv/ListingProviders` to register Gracenote lineups (type `embygn`) directly in Emby. Without this step, Emby has no Gracenote data source to query. The `scan-missing-listings` feature uses a greedy set-cover algorithm to find the minimum set of lineups that cover all stations.
 
 See [channel-identifiarr.md](channel-identifiarr.md) for detailed documentation.
 
@@ -46,9 +46,9 @@ The plugin is the orchestrator. At runtime it:
 
 The media server that displays the TV Guide. Contains:
 
-- **Listing providers** — Gracenote lineups (type `embygn`) registered by Channel Identifiarr
-- **Premiere subscription** — Required paid subscription that authenticates with Gracenote's cloud servers. Without Premiere, `embygn` providers cannot fetch data.
-- **`IListingsProvider`** — Internal Emby interface. The Gracenote implementation (`embygn`) exposes `GetProgramsAsync(providerInfo, stationId, startDate, endDate)`.
+- **Listing providers** - Gracenote lineups (type `embygn`) registered by Channel Identifiarr
+- **Premiere subscription** - Required paid subscription that authenticates with Gracenote's cloud servers. Without Premiere, `embygn` providers cannot fetch data.
+- **`IListingsProvider`** - Internal Emby interface. The Gracenote implementation (`embygn`) exposes `GetProgramsAsync(providerInfo, stationId, startDate, endDate)`.
 
 ## Setup vs Runtime
 

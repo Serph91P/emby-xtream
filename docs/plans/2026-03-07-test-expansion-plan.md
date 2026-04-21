@@ -1,4 +1,4 @@
-# Test Expansion — Integration Harness Implementation Plan
+# Test Expansion - Integration Harness Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -27,7 +27,7 @@ namespace Emby.Xtream.Plugin.Tests.Fakes
 {
     /// <summary>
     /// Creates a unique temp directory for a test and deletes it on Dispose.
-    /// Use as a field in test classes — dispose in constructor via IDisposable or in each test.
+    /// Use as a field in test classes - dispose in constructor via IDisposable or in each test.
     /// </summary>
     public sealed class TempDirectory : IDisposable
     {
@@ -155,7 +155,7 @@ git commit -m "test: add FakeHttpHandler for intercepting HTTP in tests"
 
 ---
 
-## Task 3: Refactor `StrmSyncService` — `HttpClient` injection + `saveConfig` parameter
+## Task 3: Refactor `StrmSyncService` - `HttpClient` injection + `saveConfig` parameter
 
 This is the only substantial production code change. All `Plugin.Instance.*` calls are extracted from `StrmSyncService`. No behaviour changes.
 
@@ -189,9 +189,9 @@ public StrmSyncService(ILogger logger, HttpClient httpClient = null)
 
 **Step 2: Replace all `SharedHttpClient.GetStringAsync` with `_httpClient.GetStringAsync`**
 
-There are 6 call sites at lines ~1257, ~1300, ~1317, ~1368, ~1385, ~1429. Use a global replace — search for `SharedHttpClient.GetStringAsync` and replace with `_httpClient.GetStringAsync` in the file. Do NOT replace the field declaration at line 87.
+There are 6 call sites at lines ~1257, ~1300, ~1317, ~1368, ~1385, ~1429. Use a global replace - search for `SharedHttpClient.GetStringAsync` and replace with `_httpClient.GetStringAsync` in the file. Do NOT replace the field declaration at line 87.
 
-Also update `ApplyUserAgentToSharedClient` (line ~92) — keep it pointing at `SharedHttpClient` (the shared static), since production always uses that. The injected `_httpClient` in tests has no user-agent header requirement.
+Also update `ApplyUserAgentToSharedClient` (line ~92) - keep it pointing at `SharedHttpClient` (the shared static), since production always uses that. The injected `_httpClient` in tests has no user-agent header requirement.
 
 **Step 3: Add `saveConfig` parameter to `CheckAndUpgradeNamingVersion`**
 
@@ -219,7 +219,7 @@ New signature:
 public async Task SyncMoviesAsync(PluginConfiguration config, CancellationToken cancellationToken, Action saveConfig = null)
 ```
 
-Remove the line `var config = Plugin.Instance.Configuration;` (it's the first line of the method body — now received as a parameter).
+Remove the line `var config = Plugin.Instance.Configuration;` (it's the first line of the method body - now received as a parameter).
 
 Update the call to `CheckAndUpgradeNamingVersion` to pass `saveConfig`:
 ```csharp
@@ -422,7 +422,7 @@ namespace Emby.Xtream.Plugin.Tests
 ```bash
 dotnet build Emby.Xtream.Plugin.Tests/
 ```
-Expected: 0 errors. Note: `NullLogger` is already used in `DispatcharrClientTests` — it lives in the test project.
+Expected: 0 errors. Note: `NullLogger` is already used in `DispatcharrClientTests` - it lives in the test project.
 
 **Step 3: Commit**
 
@@ -433,7 +433,7 @@ git commit -m "test: add SyncTestBase with FakeHttpHandler + TempDirectory wirin
 
 ---
 
-## Task 5: Pure-logic tests — folder naming, `ParseTvdbOverrides`, `ComputeChannelListHash`, naming version, `NfoWriter`
+## Task 5: Pure-logic tests - folder naming, `ParseTvdbOverrides`, `ComputeChannelListHash`, naming version, `NfoWriter`
 
 **Files:**
 - Modify: `Emby.Xtream.Plugin.Tests/StrmSyncServiceTests.cs`
@@ -585,7 +585,7 @@ public void ComputeChannelListHash_NameChanged_ChangeHash()
 
 **Step 4: Add naming version upgrade tests**
 
-These require the refactored `CheckAndUpgradeNamingVersion(config, saveConfig)` — make it `internal` (it already is `private`; change to `internal` so tests can call it directly). Add `[assembly: InternalsVisibleTo("Emby.Xtream.Plugin.Tests")]` to `StrmSyncService.cs` if not already present — check first.
+These require the refactored `CheckAndUpgradeNamingVersion(config, saveConfig)` - make it `internal` (it already is `private`; change to `internal` so tests can call it directly). Add `[assembly: InternalsVisibleTo("Emby.Xtream.Plugin.Tests")]` to `StrmSyncService.cs` if not already present - check first.
 
 Actually, simpler: test `CheckAndUpgradeNamingVersion` indirectly through the integration tests in Task 6/7 (the "naming version upgrade bypasses smart-skip" tests). The unit-level assertions (saveConfig called once, returns true) can be tested by making it `internal` and using `InternalsVisibleTo`.
 
@@ -1037,7 +1037,7 @@ namespace Emby.Xtream.Plugin.Tests
         [Fact]
         public async Task EpisodeTitleDeduplication_TitleNotDuplicatedInFilename()
         {
-            // Provider sends title "Breaking Bad - S01E01" — should strip to ""
+            // Provider sends title "Breaking Bad - S01E01" - should strip to ""
             var config = DefaultConfig();
             RegisterSeriesResponses(
                 SeriesListJson(Series(seriesId: 1, name: "Breaking Bad", lastModified: "2000")),
@@ -1202,7 +1202,7 @@ git commit -m "test: add SyncSeries integration tests (smart-skip, orphan cleanu
 
 ---
 
-## Task 8: `XtreamTunerHostTests` — skip for now, mark as future work
+## Task 8: `XtreamTunerHostTests` - skip for now, mark as future work
 
 `XtreamTunerHost` has a deeper dependency on the Emby `ITunerHost` interface and static `_stats` cache that requires more significant refactoring to make testable (the stats are stored in a static `ConcurrentDictionary` keyed by tuner ID). This is better addressed as a separate design effort once the sync tests are bedded in.
 
@@ -1212,7 +1212,7 @@ Document this as a follow-up:
 - Create: `Emby.Xtream.Plugin.Tests/XtreamTunerHostTests.cs`
 
 ```csharp
-// TODO: XtreamTunerHost integration tests — tracked as follow-up.
+// TODO: XtreamTunerHost integration tests - tracked as follow-up.
 // The stream stats cache (_streamStats) is static and shared across test runs,
 // making isolation difficult without refactoring the stats lifecycle.
 // See docs/plans/2026-03-07-test-expansion-design.md Section 3 for scenario list.
@@ -1261,6 +1261,6 @@ git push origin main
 | `Emby.Xtream.Plugin.Tests/Fakes/FakeHttpHandler.cs` | New |
 | `Emby.Xtream.Plugin.Tests/SyncTestBase.cs` | New |
 | `Emby.Xtream.Plugin.Tests/StrmSyncServiceTests.cs` | Add ~25 tests |
-| `Emby.Xtream.Plugin.Tests/SyncMoviesIntegrationTests.cs` | New — 9 tests |
-| `Emby.Xtream.Plugin.Tests/SyncSeriesIntegrationTests.cs` | New — 8 tests |
-| `Emby.Xtream.Plugin.Tests/XtreamTunerHostTests.cs` | New — placeholder |
+| `Emby.Xtream.Plugin.Tests/SyncMoviesIntegrationTests.cs` | New - 9 tests |
+| `Emby.Xtream.Plugin.Tests/SyncSeriesIntegrationTests.cs` | New - 8 tests |
+| `Emby.Xtream.Plugin.Tests/XtreamTunerHostTests.cs` | New - placeholder |

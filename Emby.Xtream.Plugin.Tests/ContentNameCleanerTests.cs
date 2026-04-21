@@ -90,7 +90,7 @@ namespace Emby.Xtream.Plugin.Tests
         [Fact]
         public void HandlesMixedDelimiterTypes()
         {
-            // Mismatched open ┃ and close │ — regex allows any combo
+            // Mismatched open ┃ and close │ - regex allows any combo
             var result = ContentNameCleaner.CleanContentName("\u2503UK\u2502 The Movie");
             Assert.Equal("The Movie", result);
         }
@@ -106,13 +106,13 @@ namespace Emby.Xtream.Plugin.Tests
         }
 
         [Theory]
-        [InlineData("FBI - Most Wanted")]   // 3-letter acronym — preserved
-        [InlineData("CSI - Vegas")]          // 3-letter acronym — preserved
-        [InlineData("NCIS - Los Angeles")]   // 4-letter acronym — preserved
-        [InlineData("4K-NF - Arcane")]       // quality tag with digit/hyphen — preserved (use ContentRemoveTerms)
-        [InlineData("FHD - The Crown")]      // 3-letter quality tag — preserved
-        [InlineData("A - Show")]             // single char — too short
-        [InlineData("The - Show")]           // lowercase — not matched
+        [InlineData("FBI - Most Wanted")]   // 3-letter acronym - preserved
+        [InlineData("CSI - Vegas")]          // 3-letter acronym - preserved
+        [InlineData("NCIS - Los Angeles")]   // 4-letter acronym - preserved
+        [InlineData("4K-NF - Arcane")]       // quality tag with digit/hyphen - preserved (use ContentRemoveTerms)
+        [InlineData("FHD - The Crown")]      // 3-letter quality tag - preserved
+        [InlineData("A - Show")]             // single char - too short
+        [InlineData("The - Show")]           // lowercase - not matched
         public void PreservesNonCountryCodeDashPatterns(string input)
         {
             Assert.Equal(input, ContentNameCleaner.CleanContentName(input));

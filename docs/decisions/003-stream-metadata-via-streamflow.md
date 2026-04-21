@@ -1,13 +1,13 @@
-# ADR 003 — Stream metadata routed through Streamflow rather than probed by the plugin
+# ADR 003 - Stream metadata routed through Streamflow rather than probed by the plugin
 
 ## Context
 
 Emby uses `MediaSourceInfo.MediaStreams` to decide whether a live TV stream can be
 direct-played or must be transcoded. The relevant fields are:
 
-- **Video**: `Profile`, `Level`, `BitDepth`, `RefFrames` — used to check client HW decoder limits
-- **Audio**: `Language`, `ChannelLayout`, `SampleRate` — used for track labelling and auto-selection
-- **Timing**: `WallClockStart`, `ContainerStartTimeTicks`, `StreamStartTimeTicks` — used for
+- **Video**: `Profile`, `Level`, `BitDepth`, `RefFrames` - used to check client HW decoder limits
+- **Audio**: `Language`, `ChannelLayout`, `SampleRate` - used for track labelling and auto-selection
+- **Timing**: `WallClockStart`, `ContainerStartTimeTicks`, `StreamStartTimeTicks` - used for
   scrubber positioning and DVR buffer alignment
 
 An M3U tuner gets all of these by probing the stream via ffprobe at stream-open time.
@@ -32,7 +32,7 @@ during the probe window. Dispatcharr's 1-stream limit means a background probe w
 real playback. Rejected.
 
 **2. Plugin probes the source URL directly**
-The plugin does not have access to the raw source URL — only the Dispatcharr proxy UUID.
+The plugin does not have access to the raw source URL - only the Dispatcharr proxy UUID.
 Dispatcharr selects which underlying stream to serve dynamically. Not feasible.
 
 **3. Plugin returns dummy defaults and lets Emby probe**
@@ -70,7 +70,7 @@ Fields now available: `video_profile`, `video_level`, `video_bit_depth`, `video_
 - Audio track picker shows language ("Dutch AC3 5.1" instead of "AC3 5.1").
 - Emby preferred-language auto-selection works for live TV.
 
-**Remaining gaps** (require live stream probing — not safely doable)
+**Remaining gaps** (require live stream probing - not safely doable)
 
 | Field | Effect of absence |
 |---|---|

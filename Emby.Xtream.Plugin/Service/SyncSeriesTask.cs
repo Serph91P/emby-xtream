@@ -34,13 +34,13 @@ namespace Emby.Xtream.Plugin.Service
             var config = Plugin.Instance.Configuration;
             if (!config.SyncSeries)
             {
-                _logger.Info("Series sync disabled — skipping.");
+                _logger.Info("Series sync disabled - skipping.");
                 return;
             }
             var svc = Plugin.Instance.StrmSyncService;
             if (svc.SeriesProgress.IsRunning)
             {
-                _logger.Info("Series sync already running — skipping scheduled run.");
+                _logger.Info("Series sync already running - skipping scheduled run.");
                 return;
             }
             progress.Report(0);

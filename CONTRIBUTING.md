@@ -2,7 +2,7 @@
 
 ## Architecture
 
-### Emby DI / SimpleInjector — service class construction
+### Emby DI / SimpleInjector - service class construction
 
 Emby's `ApplicationHost.CreateInstanceSafe` scans the plugin assembly and auto-registers **all public classes** whose constructor matches known DI types (e.g. `ILogger`). It instantiates these via SimpleInjector **before** the `Plugin` constructor runs.
 
@@ -15,7 +15,7 @@ This means:
 
 ### Plugin configuration path requires ApplicationPaths
 
-`BasePlugin<T>.get_Configuration()` calls `Path.Combine(ApplicationPaths.PluginConfigurationsPath, ...)` internally. This path may not be initialised when Emby is scanning services, causing `ArgumentNullException: Value cannot be null. (Parameter 'path2')`. Same rule applies — defer config access to runtime methods.
+`BasePlugin<T>.get_Configuration()` calls `Path.Combine(ApplicationPaths.PluginConfigurationsPath, ...)` internally. This path may not be initialised when Emby is scanning services, causing `ArgumentNullException: Value cannot be null. (Parameter 'path2')`. Same rule applies - defer config access to runtime methods.
 
 ### Delta sync state via PluginConfiguration
 
@@ -23,17 +23,17 @@ This means:
 
 ### SupportsGuideData and EPG
 
-When `SupportsGuideData()` returns `true`, Emby calls `GetProgramsInternal` on the tuner host for each channel. The `tunerChannelId` parameter is whatever was set in `ChannelInfo.TunerChannelId` — the Gracenote station ID (e.g. `"51529"`) when Dispatcharr is enabled and a station ID exists, or the raw stream ID (e.g. `"12345"`) otherwise. Use `_tunerChannelIdToStreamId` to translate either form back to a stream ID.
+When `SupportsGuideData()` returns `true`, Emby calls `GetProgramsInternal` on the tuner host for each channel. The `tunerChannelId` parameter is whatever was set in `ChannelInfo.TunerChannelId` - the Gracenote station ID (e.g. `"51529"`) when Dispatcharr is enabled and a station ID exists, or the raw stream ID (e.g. `"12345"`) otherwise. Use `_tunerChannelIdToStreamId` to translate either form back to a stream ID.
 
-### Dispatcharr proxy — never enable probing
+### Dispatcharr proxy - never enable probing
 
-When `SupportsProbing = true` and `AnalyzeDurationMs > 0`, Emby runs ffprobe against `MediaSource.Path` independently of `GetChannelStream`. For Dispatcharr proxy URLs (`/proxy/ts/stream/{uuid}`) this is destructive: the probe opens a short-lived connection then closes it, Dispatcharr interprets the close as the last client leaving and tears down the channel, and the real playback connection that follows hits the "channel stop signal" — triggering a rapid retry storm.
+When `SupportsProbing = true` and `AnalyzeDurationMs > 0`, Emby runs ffprobe against `MediaSource.Path` independently of `GetChannelStream`. For Dispatcharr proxy URLs (`/proxy/ts/stream/{uuid}`) this is destructive: the probe opens a short-lived connection then closes it, Dispatcharr interprets the close as the last client leaving and tears down the channel, and the real playback connection that follows hits the "channel stop signal" - triggering a rapid retry storm.
 
 **Rule**: always set `SupportsProbing = false` and `AnalyzeDurationMs = 0` for Dispatcharr proxy URLs. Direct Xtream URLs can still use probing when stream stats are absent.
 
 ### Guide grid empty after setup
 
-If the Emby guide shows no channels despite having data, check browser localStorage for a stale `guide-tagids` filter. The guide calls `/LiveTv/EPG?TagIds=<id>` — if the stored tag ID doesn't match any channel the grid is empty. Fix: click the filter icon in the guide, or run `localStorage.removeItem('guide-tagids')` in the browser console.
+If the Emby guide shows no channels despite having data, check browser localStorage for a stale `guide-tagids` filter. The guide calls `/LiveTv/EPG?TagIds=<id>` - if the stored tag ID doesn't match any channel the grid is empty. Fix: click the filter icon in the guide, or run `localStorage.removeItem('guide-tagids')` in the browser console.
 
 ---
 

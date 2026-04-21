@@ -39,7 +39,7 @@ namespace Emby.Xtream.Plugin.Client.Models
         [JsonConverter(typeof(IntAsBoolConverter))]
         public bool HasArchive { get; set; }
 
-        // Not from JSON — populated by XMLTV parser only
+        // Not from JSON - populated by XMLTV parser only
         [JsonIgnore] public bool IsLive { get; set; }
         [JsonIgnore] public bool IsNew { get; set; }
         [JsonIgnore] public bool IsPreviouslyShown { get; set; }

@@ -107,7 +107,7 @@ namespace Emby.Xtream.Plugin.Service
             // If this channel has a Gracenote station ID, fetch programs directly from the
             // listings provider rather than returning Xtream EPG. This gives the channel
             // rich Gracenote metadata (artwork, descriptions, genres) without relying on
-            // Emby's auto-mapper — which would incorrectly match other channels too.
+            // Emby's auto-mapper - which would incorrectly match other channels too.
             var stationMap = _stationIdMap;
             if (stationMap != null && stationMap.TryGetValue(streamId, out var stationId)
                 && !string.IsNullOrEmpty(stationId)
@@ -171,7 +171,7 @@ namespace Emby.Xtream.Plugin.Service
                     continue;
                 }
 
-                // Skip zero-duration or reversed programs — Emby's GetProgram throws when
+                // Skip zero-duration or reversed programs - Emby's GetProgram throws when
                 // EndDate <= StartDate, which causes the entire channel to be rejected.
                 if (p.StopTimestamp <= p.StartTimestamp)
                 {
@@ -197,7 +197,7 @@ namespace Emby.Xtream.Plugin.Service
                 }
             }
 
-            // No EPG data — return a dummy entry spanning the requested window so the channel
+            // No EPG data - return a dummy entry spanning the requested window so the channel
             // row stays visible and clickable in the guide (matches M3U tuner behaviour).
             if (result.Count == 0)
             {
@@ -219,7 +219,7 @@ namespace Emby.Xtream.Plugin.Service
 
             if (result.Count > 0 && result.Count <= 15)
             {
-                // Low program count — log first entry to help diagnose EPG quality issues.
+                // Low program count - log first entry to help diagnose EPG quality issues.
                 var first = result[0];
                 Logger.Debug("GetProgramsInternal: channel {0} first program: start={1:u}, end={2:u}, name='{3}'",
                     streamId, first.StartDate, first.EndDate, first.Name);
@@ -512,7 +512,7 @@ namespace Emby.Xtream.Plugin.Service
                     {
                         var updated = DetachListingProviders();
                         if (updated > 0)
-                            Logger.Info("Auto-detached Xtream tuner from {0} listing provider(s) — Gracenote EPG will be fetched by the tuner directly", updated);
+                            Logger.Info("Auto-detached Xtream tuner from {0} listing provider(s) - Gracenote EPG will be fetched by the tuner directly", updated);
                     }
                     catch (Exception ex)
                     {
@@ -761,7 +761,7 @@ namespace Emby.Xtream.Plugin.Service
         /// window before the plugin detached. Correct artwork returns on the next guide
         /// refresh from the proper source.
         /// </summary>
-        private void ClearWrongChannelArtwork()
+        internal void ClearWrongChannelArtwork()
         {
             try
             {
@@ -825,7 +825,7 @@ namespace Emby.Xtream.Plugin.Service
                 var cachedChannels = _cachedChannels;
                 if (cachedChannels == null || cachedChannels.Count == 0)
                 {
-                    Logger.Info("ClearWrongChannelArtwork: no cached channels — skipping");
+                    Logger.Info("ClearWrongChannelArtwork: no cached channels - skipping");
                     return;
                 }
 
@@ -1106,7 +1106,7 @@ namespace Emby.Xtream.Plugin.Service
             // audio (→ AAC on iOS/Apple TV). This fixes silent AC3 playback on Apple devices.
             // If stats are available and confirm a non-AC3 codec, direct-stream is safe and
             // kept enabled. Without stats we can't verify the codec, so we also force
-            // transcoding — the user has opted in and accepted that trade-off.
+            // transcoding - the user has opted in and accepted that trade-off.
             bool suppressDirectStream = forceAudioTranscode &&
                 (!hasStats || audioCodecLower == "ac3" || audioCodecLower == "eac3" || audioCodecLower == "mp2");
 
@@ -1281,7 +1281,7 @@ namespace Emby.Xtream.Plugin.Service
             }
             else
             {
-                // No stats — provide defaults so hardware decoding can still be attempted.
+                // No stats - provide defaults so hardware decoding can still be attempted.
                 // Codec must be non-null: Emby's RecordingRequiresEncoding accesses it
                 // directly and throws NullReferenceException when it is null.  H.264/AAC
                 // are the most common IPTV codecs and serve as safe fallbacks.

@@ -99,7 +99,7 @@ namespace Emby.Xtream.Plugin
         }
 
         /// <summary>
-        /// Returns a stable page name for config.html. Must never change between versions —
+        /// Returns a stable page name for config.html. Must never change between versions -
         /// if it did, the Emby SPA would navigate to a stale URL after a banner install and
         /// show "error processing request" because the old page name no longer exists in the
         /// new DLL. Emby appends ?v=&lt;ServerVersion&gt; for cache-busting.

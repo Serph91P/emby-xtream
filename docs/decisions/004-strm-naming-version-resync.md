@@ -1,4 +1,4 @@
-# ADR-004: StrmNamingVersion — Force Re-Sync After Naming Bug Fixes
+# ADR-004: StrmNamingVersion - Force Re-Sync After Naming Bug Fixes
 
 **Date**: 2026-03-07
 **Status**: Accepted
@@ -12,7 +12,7 @@ The STRM sync pipeline uses delta sync: `LastMovieSyncTimestamp` and `LastSeries
 store the provider-side timestamp of the most-recently-seen item. On subsequent runs,
 `SmartSkipExisting` skips any series whose directory already exists and whose provider timestamp
 has not advanced. This is correct behaviour for content changes, but it also means that **a fix
-to the filename generation logic does not automatically propagate to existing files** — the
+to the filename generation logic does not automatically propagate to existing files** - the
 corrected code path is never reached for series that the smart-skip considers unchanged.
 
 ## Problem
@@ -35,8 +35,8 @@ duplicated names were never overwritten.
 
 Detecting "plugin updated" reliably at runtime is not straightforward in Emby's plugin model.
 The plugin version is available, but storing `LastKnownPluginVersion` and comparing on startup
-adds coupling between the release process and the sync state. Any version bump — even one
-unrelated to naming — would trigger a full re-sync.
+adds coupling between the release process and the sync state. Any version bump - even one
+unrelated to naming - would trigger a full re-sync.
 
 ### Option B: User-initiated "Force Full Re-Sync" button (rejected)
 
@@ -55,9 +55,9 @@ with the corrected names, and updates the stored version so the re-sync happens 
 
 Implement Option C: `StrmNamingVersion`.
 
-- `PluginConfiguration.StrmNamingVersion` — persisted integer, default 0
-- `StrmSyncService.CurrentStrmNamingVersion = 1` — bumped for the v1.4.31 naming fix
-- `CheckAndUpgradeNamingVersion(config)` — called at the top of both `SyncMoviesAsync` and
+- `PluginConfiguration.StrmNamingVersion` - persisted integer, default 0
+- `StrmSyncService.CurrentStrmNamingVersion = 1` - bumped for the v1.4.31 naming fix
+- `CheckAndUpgradeNamingVersion(config)` - called at the top of both `SyncMoviesAsync` and
   `SyncSeriesAsync`; idempotent (whichever sync runs first applies the upgrade, subsequent
   calls are no-ops within the same session)
 
@@ -82,4 +82,4 @@ When to bump `CurrentStrmNamingVersion` in future:
   cleanup or delete old files manually. This should be called out in release notes.
 - Both `SyncMoviesAsync` and `SyncSeriesAsync` receive the call even though the v1.4.31 fix
   only affected series. Resetting the movie timestamp is harmless (movie naming was unaffected),
-  and it keeps the implementation simple — one upgrade path covers both sync types.
+  and it keeps the implementation simple - one upgrade path covers both sync types.

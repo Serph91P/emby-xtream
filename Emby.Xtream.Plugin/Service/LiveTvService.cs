@@ -34,13 +34,17 @@ namespace Emby.Xtream.Plugin.Service
             = new Dictionary<int, (List<EpgProgram>, DateTime)>();
 
         // XMLTV bulk EPG cache: epg_channel_id → programs (populated from /xmltv.php)
-        private Dictionary<string, List<EpgProgram>> _xmltvCache;
+        private volatile Dictionary<string, List<EpgProgram>> _xmltvCache;
         private DateTime _xmltvCacheTime = DateTime.MinValue;
-        private bool _xmltvFailed;
+        // _xmltvFailed is set true after a fetch failure to avoid hammering the server.
+        // It is reset either by InvalidateCache() or automatically once the cache TTL
+        // has elapsed from the failure time, allowing transparent recovery.
+        private volatile bool _xmltvFailed;
+        private DateTime _xmltvFailedTime = DateTime.MinValue;
         private Dictionary<int, string> _epgChannelIdByStreamId = new Dictionary<int, string>();
 
-        private string _cachedM3U;
-        private string _cachedEpgXml;
+        private volatile string _cachedM3U;
+        private volatile string _cachedEpgXml;
         private DateTime _m3uCacheTime = DateTime.MinValue;
         private DateTime _epgCacheTime = DateTime.MinValue;
         private bool _disposed;
@@ -49,6 +53,18 @@ namespace Emby.Xtream.Plugin.Service
         {
             _logger = logger;
         }
+
+        /// <summary>Exposed for unit testing only: indicates whether the last XMLTV fetch failed.</summary>
+        internal bool XmltvFailed => _xmltvFailed;
+
+        /// <summary>Exposed for unit testing only: the time the last XMLTV fetch failure occurred.</summary>
+        internal DateTime XmltvFailedTime => _xmltvFailedTime;
+
+        /// <summary>Exposed for unit testing only: whether the M3U cache is populated.</summary>
+        internal bool HasCachedM3U => _cachedM3U != null;
+
+        /// <summary>Exposed for unit testing only: whether the EPG XML cache is populated.</summary>
+        internal bool HasCachedEpgXml => _cachedEpgXml != null;
 
         /// <summary>
         /// Gets the M3U playlist for Live TV channels.
@@ -169,6 +185,7 @@ namespace Emby.Xtream.Plugin.Service
             _xmltvCache = null;
             _xmltvCacheTime = DateTime.MinValue;
             _xmltvFailed = false;
+            _xmltvFailedTime = DateTime.MinValue;
             _epgChannelIdByStreamId = new Dictionary<int, string>();
             _logger.Info("Live TV cache invalidated");
         }
@@ -511,8 +528,12 @@ namespace Emby.Xtream.Plugin.Service
                 if (programs != null) return programs;
             }
 
-            // 3. If XMLTV cache is stale and hasn't failed, try fetching it
-            if (!xmltvCacheFresh && !_xmltvFailed)
+            // 3. If XMLTV cache is stale and either hasn't failed or the failure is old enough
+            //    to warrant a retry (once the TTL has elapsed since the failure), try fetching it.
+            //    This ensures the plugin recovers transparently when the upstream EPG source
+            //    comes back online, without requiring a manual "Refresh Cache" action.
+            var xmltvFailedButRetryDue = _xmltvFailed && DateTime.UtcNow - _xmltvFailedTime >= cacheTtl;
+            if (!xmltvCacheFresh && (!_xmltvFailed || xmltvFailedButRetryDue))
             {
                 var xmltvOk = await TryFetchXmltvEpgAsync(cancellationToken).ConfigureAwait(false);
                 if (xmltvOk)
@@ -522,7 +543,7 @@ namespace Emby.Xtream.Plugin.Service
                 }
             }
 
-            // 4. Fall back to per-channel JSON (get_simple_data_table) — Xtream server only.
+            // 4. Fall back to per-channel JSON (get_simple_data_table) - Xtream server only.
             //    Custom URL mode does not fall back: if the user's URL failed, return empty so
             //    GetProgramsInternal shows a dummy placeholder rather than silently using a
             //    different source.
@@ -629,6 +650,7 @@ namespace Emby.Xtream.Plugin.Service
                     _epgChannelIdByStreamId = mapping;
                     _xmltvCacheTime = DateTime.UtcNow;
                     _xmltvFailed = false;
+                    _xmltvFailedTime = DateTime.MinValue;
 
                     _logger.Info("XMLTV EPG fetched: {0} channels with program data", _xmltvCache.Count);
                     return true;
@@ -636,9 +658,10 @@ namespace Emby.Xtream.Plugin.Service
                 catch (Exception ex)
                 {
                     _xmltvFailed = true;
+                    _xmltvFailedTime = DateTime.UtcNow;
                     var isCustom = config.EpgSource == EpgSourceMode.CustomUrl;
                     _logger.Warn(isCustom
-                        ? "Custom EPG URL fetch failed — no fallback: {0}"
+                        ? "Custom EPG URL fetch failed - no fallback: {0}"
                         : "XMLTV EPG fetch failed, will fall back to per-channel JSON: {0}", ex.Message);
                     return false;
                 }

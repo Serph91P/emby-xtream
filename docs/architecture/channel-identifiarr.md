@@ -14,9 +14,9 @@ Users search the local Gracenote database by channel name, call sign, or lineup.
 
 ### Two Integration Points
 
-**Role A — Dispatcharr enrichment**: When a user applies a Gracenote match to a Dispatcharr channel, Channel Identifiarr writes the station ID to Dispatcharr's `tvc_guide_stationid` field via `PATCH /api/channels/channels/{id}/`. It can also update `tvg_id`, call sign, channel name, and upload logos.
+**Role A - Dispatcharr enrichment**: When a user applies a Gracenote match to a Dispatcharr channel, Channel Identifiarr writes the station ID to Dispatcharr's `tvc_guide_stationid` field via `PATCH /api/channels/channels/{id}/`. It can also update `tvg_id`, call sign, channel name, and upload logos.
 
-**Role B — Emby listing providers**: The "Scan Missing Listings" feature adds Gracenote lineups directly to Emby so that Emby has the guide data source available. Without this step, Emby has no Gracenote data to query even if station IDs are correctly set.
+**Role B - Emby listing providers**: The "Scan Missing Listings" feature adds Gracenote lineups directly to Emby so that Emby has the guide data source available. Without this step, Emby has no Gracenote data to query even if station IDs are correctly set.
 
 ## Emby Integration Endpoints
 
@@ -32,12 +32,12 @@ Users search the local Gracenote database by channel name, call sign, or lineup.
 
 This is the most relevant feature for the Xtream Tuner Plugin. The algorithm:
 
-1. **Fetch Emby channels** — `GET /emby/LiveTv/Manage/Channels?Fields=ManagementId,ListingsId,Name,ChannelNumber,Id`
-2. **Filter** — keep only channels where `ListingsId` is empty/null
-3. **Extract station IDs** — for each missing channel, determine its Gracenote station ID
-4. **Query Gracenote DB** — for each station ID, find all lineups that contain it
-5. **Greedy set-cover** — select the minimum set of lineups that cover all stations, prioritizing by user's country/ZIP and lineup type (OTA > Cable > Satellite > VMVPD)
-6. **Add providers** — `POST /emby/LiveTv/ListingProviders` for each selected lineup with type `embygn`
+1. **Fetch Emby channels** - `GET /emby/LiveTv/Manage/Channels?Fields=ManagementId,ListingsId,Name,ChannelNumber,Id`
+2. **Filter** - keep only channels where `ListingsId` is empty/null
+3. **Extract station IDs** - for each missing channel, determine its Gracenote station ID
+4. **Query Gracenote DB** - for each station ID, find all lineups that contain it
+5. **Greedy set-cover** - select the minimum set of lineups that cover all stations, prioritizing by user's country/ZIP and lineup type (OTA > Cable > Satellite > VMVPD)
+6. **Add providers** - `POST /emby/LiveTv/ListingProviders` for each selected lineup with type `embygn`
 
 ### The ManagementId Problem
 
@@ -58,7 +58,7 @@ This works for **M3U tuner** channels where the ManagementId format includes `tv
 | M3U | `abc123_m3u_51529` | `51529` | Yes |
 | Xtream | `abc123_xtream-tuner_14035` | `14035` | No (stream ID) |
 
-For custom tuners like Xtream, the last segment is an internal stream ID. Since both stream IDs and Gracenote station IDs are large integers, collisions occur — the set-cover algorithm then selects dozens of irrelevant regional lineups.
+For custom tuners like Xtream, the last segment is an internal stream ID. Since both stream IDs and Gracenote station IDs are large integers, collisions occur - the set-cover algorithm then selects dozens of irrelevant regional lineups.
 
 See [ADR-006](../decisions/006-channel-identifiarr-managementid-bug.md) for the fix.
 
@@ -70,15 +70,15 @@ This is a known limitation. When adding new channels with Gracenote IDs, the pra
 
 ## Other Features
 
-- **Clone Lineup** — import entire real-world lineups (DirecTV, Dish, cable) from the Gracenote database into Dispatcharr with pre-populated metadata
-- **Logo Management** — upload logos from Gracenote to Dispatcharr, delete cached logos from Emby
-- **Stream Assignment** — search and assign streams to channels with drag-and-drop ordering and confidence scoring
-- **Database Updates** — check for and download updated Gracenote databases from remote sources
+- **Clone Lineup** - import entire real-world lineups (DirecTV, Dish, cable) from the Gracenote database into Dispatcharr with pre-populated metadata
+- **Logo Management** - upload logos from Gracenote to Dispatcharr, delete cached logos from Emby
+- **Stream Assignment** - search and assign streams to channels with drag-and-drop ordering and confidence scoring
+- **Database Updates** - check for and download updated Gracenote databases from remote sources
 
 ## Settings
 
 Channel Identifiarr stores settings in a JSON file (server-side). Relevant settings:
 
-- `dispatcharr.url`, `dispatcharr.username`, `dispatcharr.password` — Dispatcharr API credentials
-- `emby.url`, `emby.username`, `emby.password` — Emby API credentials
+- `dispatcharr.url`, `dispatcharr.username`, `dispatcharr.password` - Dispatcharr API credentials
+- `emby.url`, `emby.username`, `emby.password` - Emby API credentials
 - Database path (defaults to `/data/channelidentifiarr.db`)
