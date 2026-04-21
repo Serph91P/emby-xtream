@@ -461,7 +461,7 @@
                 <!-- ===== Settings ===== -->
                 <div class="tabPanel tabGeneric" style="display:none;">
 
-                <details class="settings-collapsible" data-collapse-key="settings.xtream" open>
+                <details class="settings-collapsible" data-collapse-key="settings.xtream">
                     <summary>Xtream Connection</summary>
                 <div class="verticalSection">
                     <h2 class="sectionTitle">Xtream Connection</h2>
@@ -500,7 +500,7 @@
 
                 <hr style="border:none; border-top:1px solid rgba(128,128,128,0.2); margin:0.25em 0 1.25em;" />
 
-                <details class="settings-collapsible" data-collapse-key="settings.strm" open>
+                <details class="settings-collapsible" data-collapse-key="settings.strm">
                     <summary>STRM File Generation</summary>
                 <div class="verticalSection">
                     <h2 class="sectionTitle">STRM Sync Settings</h2>
@@ -592,7 +592,7 @@
                     </div>
                 </div>
 
-                <details class="settings-subgroup" data-collapse-key="settings.strm.namecleaning" open>
+                <details class="settings-subgroup" data-collapse-key="settings.strm.namecleaning">
                     <summary>Name Cleaning</summary>
                 <div class="verticalSection">
                     <h2 class="sectionTitle">Name Cleaning</h2>
@@ -621,7 +621,7 @@
                 </div>
                 </details>
 
-                <details class="settings-subgroup" data-collapse-key="settings.strm.tmdb" open>
+                <details class="settings-subgroup" data-collapse-key="settings.strm.tmdb">
                     <summary>TMDB / TVDb Matching</summary>
                 <div class="verticalSection">
                     <h2 class="sectionTitle">TMDB / TVDb Matching</h2>
@@ -670,7 +670,7 @@
 
                 <hr style="border:none; border-top:1px solid rgba(128,128,128,0.2); margin:0.25em 0 1.25em;" />
 
-                <details class="settings-collapsible" data-collapse-key="settings.dispatcharr" open>
+                <details class="settings-collapsible" data-collapse-key="settings.dispatcharr">
                     <summary>Dispatcharr Integration</summary>
                 <div class="verticalSection">
                     <h2 class="sectionTitle">Dispatcharr Integration</h2>
@@ -777,7 +777,7 @@
 
                 <hr style="border:none; border-top:1px solid rgba(128,128,128,0.2); margin:0.25em 0 1.25em;" />
 
-                <details class="settings-collapsible" data-collapse-key="settings.updates" open>
+                <details class="settings-collapsible" data-collapse-key="settings.updates">
                     <summary>Updates</summary>
                 <div class="verticalSection">
                     <h2 class="sectionTitle">Updates</h2>
@@ -798,6 +798,8 @@
                 <!-- ===== Movies ===== -->
                 <div class="tabPanel tabMovies" style="display:none;">
 
+                <details class="settings-collapsible" data-collapse-key="movies.general">
+                    <summary>Movies General</summary>
                 <div class="verticalSection">
                     <div class="checkboxContainer checkboxContainer-withDescription">
                         <label>
@@ -809,7 +811,10 @@
                         </div>
                     </div>
                 </div>
+                </details>
 
+                <details class="settings-collapsible" data-collapse-key="movies.sync">
+                    <summary>Movies Categories &amp; Sync</summary>
                 <div class="vodMovieSettings">
                 <div class="verticalSection">
                         <select class="selMovieFolderMode" style="display:none;">
@@ -904,6 +909,7 @@
                             </div>
                         </div>
                     </div>
+                </details>
 
                 </div><!-- end tabMovies -->
 
@@ -911,6 +917,8 @@
                 <!-- ===== Series ===== -->
                 <div class="tabPanel tabSeries" style="display:none;">
 
+                <details class="settings-collapsible" data-collapse-key="series.general">
+                    <summary>Series General</summary>
                 <div class="verticalSection">
                     <div class="checkboxContainer checkboxContainer-withDescription">
                         <label>
@@ -922,7 +930,10 @@
                         </div>
                     </div>
                 </div>
+                </details>
 
+                <details class="settings-collapsible" data-collapse-key="series.sync">
+                    <summary>Series Categories &amp; Sync</summary>
                 <div class="seriesSettings">
                 <div class="verticalSection">
                         <select class="selSeriesFolderMode" style="display:none;">
@@ -1017,12 +1028,15 @@
                             </div>
                         </div>
                     </div>
+                </details>
 
                 </div><!-- end tabSeries -->
 
                 <!-- ===== Live TV ===== -->
                 <div class="tabPanel tabLiveTv" style="display:none;">
 
+                <details class="settings-collapsible" data-collapse-key="livetv.general">
+                    <summary>Live TV</summary>
                 <div class="verticalSection">
                     <h2 class="sectionTitle">Live TV</h2>
                     <div class="checkboxContainer checkboxContainer-withDescription">
@@ -1048,7 +1062,10 @@
                     </button>
                     <div class="refreshCacheResult" style="margin-top:0.5em;"></div>
                 </div>
+                </details>
 
+                <details class="settings-collapsible" data-collapse-key="livetv.epg">
+                    <summary>EPG / Guide Data</summary>
                 <div class="verticalSection">
                     <h2 class="sectionTitle">EPG / Guide Data</h2>
                     <div class="inputContainer">
@@ -1118,7 +1135,10 @@
                         </div>
                     </div>
                 </div>
+                </details>
 
+                <details class="settings-collapsible" data-collapse-key="livetv.categories">
+                    <summary>Live TV Categories</summary>
                 <div class="verticalSection">
                     <h2 class="sectionTitle">Live TV Categories</h2>
                     <div class="fieldDescription" style="margin-bottom:0.5em;">
@@ -1154,6 +1174,7 @@
                         </div>
                     </div>
                 </div>
+                </details>
 
                 </div><!-- end tabLiveTv -->
 
