@@ -480,5 +480,28 @@ namespace Emby.Xtream.Plugin.Tests
             Assert.Equal(0, svc.SeriesProgress.Total);
             Assert.Equal(0, SaveConfigCallCount);
         }
+
+        [Fact]
+        public async Task M3uEditorStyleSeriesPayload_WritesEpisodeFile()
+        {
+            var config = DefaultConfig();
+
+            var list = "[{\"num\":1,\"name\":\"Show From m3u-editor\",\"series_id\":444,\"cover\":\"https://img.test/cover.jpg\",\"plot\":\"\",\"cast\":\"\",\"director\":\"\",\"genre\":\"Drama\",\"releaseDate\":\"2025-01-01\",\"last_modified\":\"1710100000\",\"rating\":\"0\",\"tmdb\":\"\",\"tmdb_id\":0,\"category_id\":\"all\"}]";
+
+            var detail = "{" +
+                "\"info\":{\"name\":\"Show From m3u-editor\",\"last_modified\":\"1710100000\",\"tmdb\":\"\",\"tmdb_id\":0,\"category_id\":\"all\"}," +
+                "\"episodes\":{\"1\":[{\"id\":\"7001\",\"episode_num\":1,\"title\":\"Pilot\",\"container_extension\":\"mkv\",\"season\":1,\"stream_id\":\"7001\",\"direct_source\":\"\"}]}," +
+                "\"seasons\":[{\"season_number\":1,\"name\":\"Season 1\"}]" +
+                "}";
+
+            Handler.RespondWith("action=get_series", list);
+            Handler.RespondWith("action=get_series_info&series_id=444", detail);
+
+            await MakeService().SyncSeriesAsync(config, None, SaveConfig);
+
+            var strmPath = EpisodeStrmPath("Show From m3u-editor", season: 1, episode: 1, title: "Pilot");
+            Assert.True(File.Exists(strmPath), $"Expected STRM file at: {strmPath}");
+            Assert.Equal("http://fake-xtream/series/user/pass/7001.mkv", File.ReadAllText(strmPath));
+        }
     }
 }

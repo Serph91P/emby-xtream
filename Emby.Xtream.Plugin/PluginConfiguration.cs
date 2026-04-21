@@ -10,6 +10,9 @@ namespace Emby.Xtream.Plugin
         public string Username { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
         public string HttpUserAgent { get; set; } = string.Empty;
+        public string DetectedBackendType { get; set; } = string.Empty;
+        public string DetectedBackendName { get; set; } = string.Empty;
+        public long LastBackendDetectionTicks { get; set; }
 
         // Live TV
         public bool EnableLiveTv { get; set; } = true;

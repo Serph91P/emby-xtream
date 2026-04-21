@@ -777,7 +777,7 @@ namespace Emby.Xtream.Plugin.Service
                         liveTvChannelType = asm.GetType("MediaBrowser.Controller.LiveTv.LiveTvChannel");
                         if (liveTvChannelType != null) break;
                     }
-                    catch { }
+                    catch (Exception) { }
                 }
 
                 if (liveTvChannelType == null)
@@ -787,7 +787,7 @@ namespace Emby.Xtream.Plugin.Service
                 }
 
                 var internalQueryType = AppDomain.CurrentDomain.GetAssemblies()
-                    .Select(a => { try { return a.GetType("MediaBrowser.Controller.Entities.InternalItemsQuery"); } catch { return null; } })
+                    .Select(a => { try { return a.GetType("MediaBrowser.Controller.Entities.InternalItemsQuery"); } catch (Exception) { return null; } })
                     .FirstOrDefault(t => t != null);
 
                 if (internalQueryType == null)

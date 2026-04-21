@@ -214,7 +214,7 @@ namespace Emby.Xtream.Plugin.Service
                         }
                         if (_seriesInfoType != null) break;
                     }
-                    catch { }
+                    catch (Exception) { }
                 }
 
                 if (_seriesInfoType == null)
@@ -295,7 +295,7 @@ namespace Emby.Xtream.Plugin.Service
                         }
                         if (_movieInfoType != null) break;
                     }
-                    catch { }
+                    catch (Exception) { }
                 }
 
                 if (_movieInfoType == null)
