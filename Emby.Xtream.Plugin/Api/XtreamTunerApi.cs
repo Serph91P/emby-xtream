@@ -880,7 +880,27 @@ namespace Emby.Xtream.Plugin.Api
                     dirs.Add(dir);
                 }
             }
-            catch (Exception ex)
+            catch (UnauthorizedAccessException ex)
+            {
+                Logger.Debug("BrowsePath failed for '{0}': {1}", path, ex.Message);
+            }
+            catch (DirectoryNotFoundException ex)
+            {
+                Logger.Debug("BrowsePath failed for '{0}': {1}", path, ex.Message);
+            }
+            catch (PathTooLongException ex)
+            {
+                Logger.Debug("BrowsePath failed for '{0}': {1}", path, ex.Message);
+            }
+            catch (IOException ex)
+            {
+                Logger.Debug("BrowsePath failed for '{0}': {1}", path, ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                Logger.Debug("BrowsePath failed for '{0}': {1}", path, ex.Message);
+            }
+            catch (NotSupportedException ex)
             {
                 Logger.Debug("BrowsePath failed for '{0}': {1}", path, ex.Message);
             }
