@@ -1338,9 +1338,13 @@ function (BaseView, loading) {
         var view = instance.view;
         var listEl = view.querySelector('.categoriesList');
         var loadingEl = view.querySelector('.categoriesLoading');
+        var statusEl = view.querySelector('.liveCategoriesStatus');
 
         loadingEl.style.display = 'block';
         listEl.innerHTML = '';
+        if (statusEl) {
+            statusEl.innerHTML = '<span style="opacity:0.6; font-size:0.9em;">Loading...</span>';
+        }
 
         var apiUrl = ApiClient.getUrl('XtreamTuner/Categories/Live');
 
@@ -1350,6 +1354,9 @@ function (BaseView, loading) {
 
             if (!categories || categories.length === 0) {
                 listEl.innerHTML = '<div style="opacity:0.5;">No categories found. Check your Xtream connection settings.</div>';
+                if (statusEl) {
+                    setPillResult(statusEl, true, 'Refresh completed. No categories returned.');
+                }
                 return;
             }
 
@@ -1369,9 +1376,15 @@ function (BaseView, loading) {
             view.querySelector('.btnSelectAllCategories').disabled = false;
             view.querySelector('.btnDeselectAllCategories').disabled = false;
             updateCategoryCountBadge(view, 'live');
+            if (statusEl) {
+                setPillResult(statusEl, true, 'Loaded ' + categories.length + ' categorie' + (categories.length === 1 ? 'y' : 's') + '.');
+            }
         }).catch(function () {
             loadingEl.style.display = 'none';
             listEl.innerHTML = '<div style="color:#cc0000;">Failed to load categories. Save your connection settings first, then try again.</div>';
+            if (statusEl) {
+                setPillResult(statusEl, false, 'Failed to refresh categories. Save settings first, then retry.');
+            }
         });
     }
 
@@ -1408,6 +1421,9 @@ function (BaseView, loading) {
 
         loadingEl.style.display = 'block';
         listEl.innerHTML = '';
+        if (statusEl) {
+            statusEl.innerHTML = '<span style="opacity:0.6; font-size:0.9em;">Loading...</span>';
+        }
 
         var apiUrl = ApiClient.getUrl('XtreamTuner/Categories/Vod');
 
@@ -1417,10 +1433,15 @@ function (BaseView, loading) {
 
             if (!categories || categories.length === 0) {
                 listEl.innerHTML = '<div style="opacity:0.5;">No VOD categories found. Check your Xtream connection settings.</div>';
+                if (statusEl) {
+                    setPillResult(statusEl, true, 'Refresh completed. No VOD categories returned.');
+                }
                 return;
             }
 
-            if (statusEl) statusEl.textContent = '';
+            if (statusEl) {
+                setPillResult(statusEl, true, 'Loaded ' + categories.length + ' VOD categorie' + (categories.length === 1 ? 'y' : 's') + '.');
+            }
 
             var html = '';
             for (var i = 0; i < categories.length; i++) {
@@ -1441,6 +1462,9 @@ function (BaseView, loading) {
         }).catch(function () {
             loadingEl.style.display = 'none';
             listEl.innerHTML = '<div style="color:#cc0000;">Failed to load VOD categories. Save your connection settings first, then try again.</div>';
+            if (statusEl) {
+                setPillResult(statusEl, false, 'Failed to refresh VOD categories. Save settings first, then retry.');
+            }
         });
     }
 
@@ -1529,6 +1553,9 @@ function (BaseView, loading) {
 
         loadingEl.style.display = 'block';
         listEl.innerHTML = '';
+        if (statusEl) {
+            statusEl.innerHTML = '<span style="opacity:0.6; font-size:0.9em;">Loading...</span>';
+        }
 
         var apiUrl = ApiClient.getUrl('XtreamTuner/Categories/Series');
 
@@ -1538,10 +1565,15 @@ function (BaseView, loading) {
 
             if (!categories || categories.length === 0) {
                 listEl.innerHTML = '<div style="opacity:0.5;">No series categories found. Check your Xtream connection settings.</div>';
+                if (statusEl) {
+                    setPillResult(statusEl, true, 'Refresh completed. No series categories returned.');
+                }
                 return;
             }
 
-            if (statusEl) statusEl.textContent = '';
+            if (statusEl) {
+                setPillResult(statusEl, true, 'Loaded ' + categories.length + ' series categorie' + (categories.length === 1 ? 'y' : 's') + '.');
+            }
 
             var html = '';
             for (var i = 0; i < categories.length; i++) {
@@ -1562,6 +1594,9 @@ function (BaseView, loading) {
         }).catch(function () {
             loadingEl.style.display = 'none';
             listEl.innerHTML = '<div style="color:#cc0000;">Failed to load series categories. Save your connection settings first, then try again.</div>';
+            if (statusEl) {
+                setPillResult(statusEl, false, 'Failed to refresh series categories. Save settings first, then retry.');
+            }
         });
     }
 
@@ -1893,17 +1928,17 @@ function (BaseView, loading) {
         var btn = view.querySelector('.btnRetryFailed');
         var result = view.querySelector('.retryFailedResult');
         if (btn) btn.disabled = true;
-        if (result) result.textContent = 'Retrying...';
+        if (result) result.innerHTML = '<span style="opacity:0.6; font-size:0.9em;">Retrying...</span>';
 
         ApiClient.ajax({ type: 'POST', url: ApiClient.getUrl('XtreamTuner/Sync/RetryFailed') })
             .then(function (data) {
-                if (result) result.textContent = data.Message || 'Done.';
+                if (result) setPillResult(result, true, data.Message || 'Retry completed.');
                 loadFailedItems(view);
                 loadDashboard(view);
                 if (btn) btn.disabled = false;
             })
             .catch(function () {
-                if (result) result.textContent = 'Retry request failed.';
+                if (result) setPillResult(result, false, 'Retry request failed. Check server logs.');
                 if (btn) btn.disabled = false;
             });
     }
