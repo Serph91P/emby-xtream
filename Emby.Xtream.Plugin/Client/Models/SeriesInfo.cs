@@ -38,9 +38,11 @@ namespace Emby.Xtream.Plugin.Client.Models
         public string CategoryName { get; set; } = string.Empty;
 
         [JsonPropertyName("last_modified")]
-        public string LastModified { get; set; } = string.Empty;
+        [JsonConverter(typeof(StringOrNumberAsLongConverter))]
+        public long LastModified { get; set; }
 
         [JsonPropertyName("tmdb")]
+        [JsonConverter(typeof(StringOrNumberAsStringConverter))]
         public string TmdbId { get; set; } = string.Empty;
     }
 }

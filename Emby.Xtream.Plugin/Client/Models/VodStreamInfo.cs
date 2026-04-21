@@ -26,6 +26,7 @@ namespace Emby.Xtream.Plugin.Client.Models
         public long Added { get; set; }
 
         [JsonPropertyName("tmdb_id")]
+        [JsonConverter(typeof(StringOrNumberAsStringConverter))]
         public string TmdbId { get; set; } = string.Empty;
     }
 }
