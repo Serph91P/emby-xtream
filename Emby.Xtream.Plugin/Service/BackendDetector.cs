@@ -144,7 +144,15 @@ namespace Emby.Xtream.Plugin.Service
                     }
                 }
             }
-            catch
+            catch (HttpRequestException)
+            {
+                // Probe errors are non-fatal: keep backend unknown when detection cannot be confirmed.
+            }
+            catch (TaskCanceledException)
+            {
+                // Probe errors are non-fatal: keep backend unknown when detection cannot be confirmed.
+            }
+            catch (OperationCanceledException)
             {
                 // Probe errors are non-fatal: keep backend unknown when detection cannot be confirmed.
             }

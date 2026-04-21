@@ -298,7 +298,7 @@ namespace Emby.Xtream.Plugin.Tests
             await MakeService().SyncMoviesAsync(config, None, SaveConfig);
 
             var folderName = "Movie From m3u-editor";
-            var strmPath = Path.Combine(TempDir.Path, "Movies", folderName, folderName + ".strm");
+            var strmPath = Path.Join(TempDir.Path, "Movies", folderName, folderName + ".strm");
             Assert.True(File.Exists(strmPath), $"Expected STRM file at: {strmPath}");
             Assert.Equal("http://fake-xtream/movie/user/pass/901.mkv", File.ReadAllText(strmPath));
         }

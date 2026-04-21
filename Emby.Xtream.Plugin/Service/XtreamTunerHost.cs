@@ -777,7 +777,22 @@ namespace Emby.Xtream.Plugin.Service
                         liveTvChannelType = asm.GetType("MediaBrowser.Controller.LiveTv.LiveTvChannel");
                         if (liveTvChannelType != null) break;
                     }
-                    catch (Exception) { }
+                    catch (TypeLoadException ex)
+                    {
+                        Logger.Debug("ClearWrongChannelArtwork: type scan failed in '{0}': {1}", asm.FullName, ex.Message);
+                    }
+                    catch (System.IO.FileLoadException ex)
+                    {
+                        Logger.Debug("ClearWrongChannelArtwork: assembly load failed in '{0}': {1}", asm.FullName, ex.Message);
+                    }
+                    catch (BadImageFormatException ex)
+                    {
+                        Logger.Debug("ClearWrongChannelArtwork: invalid assembly image in '{0}': {1}", asm.FullName, ex.Message);
+                    }
+                    catch (NotSupportedException ex)
+                    {
+                        Logger.Debug("ClearWrongChannelArtwork: type scan unsupported in '{0}': {1}", asm.FullName, ex.Message);
+                    }
                 }
 
                 if (liveTvChannelType == null)
@@ -787,7 +802,33 @@ namespace Emby.Xtream.Plugin.Service
                 }
 
                 var internalQueryType = AppDomain.CurrentDomain.GetAssemblies()
-                    .Select(a => { try { return a.GetType("MediaBrowser.Controller.Entities.InternalItemsQuery"); } catch (Exception) { return null; } })
+                    .Select(a =>
+                    {
+                        try
+                        {
+                            return a.GetType("MediaBrowser.Controller.Entities.InternalItemsQuery");
+                        }
+                        catch (TypeLoadException ex)
+                        {
+                            Logger.Debug("ClearWrongChannelArtwork: query type scan failed in '{0}': {1}", a.FullName, ex.Message);
+                            return null;
+                        }
+                        catch (System.IO.FileLoadException ex)
+                        {
+                            Logger.Debug("ClearWrongChannelArtwork: query assembly load failed in '{0}': {1}", a.FullName, ex.Message);
+                            return null;
+                        }
+                        catch (BadImageFormatException ex)
+                        {
+                            Logger.Debug("ClearWrongChannelArtwork: invalid query assembly image in '{0}': {1}", a.FullName, ex.Message);
+                            return null;
+                        }
+                        catch (NotSupportedException ex)
+                        {
+                            Logger.Debug("ClearWrongChannelArtwork: query type scan unsupported in '{0}': {1}", a.FullName, ex.Message);
+                            return null;
+                        }
+                    })
                     .FirstOrDefault(t => t != null);
 
                 if (internalQueryType == null)
@@ -920,7 +961,11 @@ namespace Emby.Xtream.Plugin.Service
             {
                 liveTvOptions = configManager.GetConfiguration("livetv") as LiveTvOptions;
             }
-            catch
+            catch (InvalidOperationException)
+            {
+                return null;
+            }
+            catch (ArgumentException)
             {
                 return null;
             }

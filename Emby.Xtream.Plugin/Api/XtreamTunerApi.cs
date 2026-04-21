@@ -567,7 +567,11 @@ namespace Emby.Xtream.Plugin.Api
                     movieCount = Directory.GetFiles(moviesRoot, "*.strm", SearchOption.AllDirectories).Length;
                 }
             }
-            catch (Exception ex)
+            catch (IOException ex)
+            {
+                Logger.Debug("Dashboard movie stats scan failed: {0}", ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
             {
                 Logger.Debug("Dashboard movie stats scan failed: {0}", ex.Message);
             }
@@ -589,9 +593,15 @@ namespace Emby.Xtream.Plugin.Api
                             {
                                 return Directory.GetDirectories(cat, "*", SearchOption.TopDirectoryOnly);
                             }
-                            catch (Exception)
+                            catch (IOException ex)
                             {
-                                return new string[0];
+                                Logger.Debug("Dashboard category scan failed for '{0}': {1}", cat, ex.Message);
+                                return Array.Empty<string>();
+                            }
+                            catch (UnauthorizedAccessException ex)
+                            {
+                                Logger.Debug("Dashboard category scan access denied for '{0}': {1}", cat, ex.Message);
+                                return Array.Empty<string>();
                             }
                         }).ToArray();
                     seriesCount = seriesDirList.Length;
@@ -601,7 +611,11 @@ namespace Emby.Xtream.Plugin.Api
                         {
                             seasonCount += Directory.GetDirectories(seriesDir, "*", SearchOption.TopDirectoryOnly).Length;
                         }
-                        catch (Exception ex)
+                        catch (IOException ex)
+                        {
+                            Logger.Debug("Dashboard season scan failed for '{0}': {1}", seriesDir, ex.Message);
+                        }
+                        catch (UnauthorizedAccessException ex)
                         {
                             Logger.Debug("Dashboard season scan failed for '{0}': {1}", seriesDir, ex.Message);
                         }
@@ -609,7 +623,11 @@ namespace Emby.Xtream.Plugin.Api
                     episodeCount = Directory.GetFiles(showsRoot, "*.strm", SearchOption.AllDirectories).Length;
                 }
             }
-            catch (Exception ex)
+            catch (IOException ex)
+            {
+                Logger.Debug("Dashboard series stats scan failed: {0}", ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
             {
                 Logger.Debug("Dashboard series stats scan failed: {0}", ex.Message);
             }
@@ -741,7 +759,14 @@ namespace Emby.Xtream.Plugin.Api
                         }
                         if (movieInfoType != null) break;
                     }
-                    catch (Exception) { }
+                    catch (System.Reflection.ReflectionTypeLoadException ex)
+                    {
+                        Logger.Debug("TestTmdbLookup type scan failed in '{0}': {1}", asm.FullName, ex.Message);
+                    }
+                    catch (NotSupportedException ex)
+                    {
+                        Logger.Debug("TestTmdbLookup type scan unsupported in '{0}': {1}", asm.FullName, ex.Message);
+                    }
                 }
 
                 result.Message += " | MovieInfoType: " + (movieInfoType != null ? movieInfoType.FullName : "NOT FOUND");
@@ -908,8 +933,13 @@ namespace Emby.Xtream.Plugin.Api
                     }
                 }
             }
-            catch (Exception)
+            catch (IOException)
             {
+                return paths;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return paths;
             }
 
             paths.Sort();
@@ -925,7 +955,11 @@ namespace Emby.Xtream.Plugin.Api
                 File.Delete(testFile);
                 return true;
             }
-            catch (Exception)
+            catch (IOException)
+            {
+                return false;
+            }
+            catch (UnauthorizedAccessException)
             {
                 return false;
             }
@@ -1265,9 +1299,9 @@ namespace Emby.Xtream.Plugin.Api
                     File.Move(tempPath, currentDll);
 
                     // Clean up backup on success
-                    try { File.Delete(bakPath); } catch (Exception ex) { Logger.Debug("InstallUpdate backup cleanup failed: {0}", ex.Message); }
+                    try { File.Delete(bakPath); } catch (IOException ex) { Logger.Debug("InstallUpdate backup cleanup failed: {0}", ex.Message); } catch (UnauthorizedAccessException ex) { Logger.Debug("InstallUpdate backup cleanup failed: {0}", ex.Message); }
                 }
-                catch
+                catch (IOException)
                 {
                     // Restore backup on failure
                     try
@@ -1275,9 +1309,24 @@ namespace Emby.Xtream.Plugin.Api
                         if (File.Exists(bakPath) && !File.Exists(currentDll))
                             File.Move(bakPath, currentDll);
                     }
-                    catch (Exception ex) { Logger.Debug("InstallUpdate backup restore failed: {0}", ex.Message); }
+                    catch (IOException ex) { Logger.Debug("InstallUpdate backup restore failed: {0}", ex.Message); }
+                    catch (UnauthorizedAccessException ex) { Logger.Debug("InstallUpdate backup restore failed: {0}", ex.Message); }
 
-                    try { File.Delete(tempPath); } catch (Exception ex) { Logger.Debug("InstallUpdate temp cleanup failed: {0}", ex.Message); }
+                    try { File.Delete(tempPath); } catch (IOException ex) { Logger.Debug("InstallUpdate temp cleanup failed: {0}", ex.Message); } catch (UnauthorizedAccessException ex) { Logger.Debug("InstallUpdate temp cleanup failed: {0}", ex.Message); }
+                    throw;
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    // Restore backup on failure
+                    try
+                    {
+                        if (File.Exists(bakPath) && !File.Exists(currentDll))
+                            File.Move(bakPath, currentDll);
+                    }
+                    catch (IOException ex) { Logger.Debug("InstallUpdate backup restore failed: {0}", ex.Message); }
+                    catch (UnauthorizedAccessException ex) { Logger.Debug("InstallUpdate backup restore failed: {0}", ex.Message); }
+
+                    try { File.Delete(tempPath); } catch (IOException ex) { Logger.Debug("InstallUpdate temp cleanup failed: {0}", ex.Message); } catch (UnauthorizedAccessException ex) { Logger.Debug("InstallUpdate temp cleanup failed: {0}", ex.Message); }
                     throw;
                 }
 
@@ -1291,7 +1340,11 @@ namespace Emby.Xtream.Plugin.Api
                     config.LastInstalledVersion = checkResult.LatestVersion;
                     Plugin.Instance.SaveConfiguration();
                 }
-                catch (Exception ex)
+                catch (IOException ex)
+                {
+                    Logger.Debug("InstallUpdate version persistence failed: {0}", ex.Message);
+                }
+                catch (InvalidOperationException ex)
                 {
                     Logger.Debug("InstallUpdate version persistence failed: {0}", ex.Message);
                 }
@@ -1305,7 +1358,15 @@ namespace Emby.Xtream.Plugin.Api
                     if (notifyMethod != null)
                         notifyMethod.Invoke(appHost, null);
                 }
-                catch (Exception ex)
+                catch (System.Reflection.TargetInvocationException ex)
+                {
+                    Logger.Debug("InstallUpdate restart notification failed: {0}", ex.Message);
+                }
+                catch (MethodAccessException ex)
+                {
+                    Logger.Debug("InstallUpdate restart notification failed: {0}", ex.Message);
+                }
+                catch (InvalidOperationException ex)
                 {
                     Logger.Debug("InstallUpdate restart notification failed: {0}", ex.Message);
                 }
@@ -1334,7 +1395,15 @@ namespace Emby.Xtream.Plugin.Api
                     restartMethod.Invoke(appHost, null);
                 }
             }
-            catch (Exception ex)
+            catch (System.Reflection.TargetInvocationException ex)
+            {
+                Logger.Warn("RestartEmby failed: {0}", ex.Message);
+            }
+            catch (MethodAccessException ex)
+            {
+                Logger.Warn("RestartEmby failed: {0}", ex.Message);
+            }
+            catch (InvalidOperationException ex)
             {
                 Logger.Warn("RestartEmby failed: {0}", ex.Message);
             }
@@ -1404,13 +1473,21 @@ namespace Emby.Xtream.Plugin.Api
                             }
                         }
                     }
-                    catch (Exception ex)
+                    catch (IOException ex)
+                    {
+                        Logger.Debug("Log read failed for '{0}': {1}", logFile, ex.Message);
+                    }
+                    catch (UnauthorizedAccessException ex)
                     {
                         Logger.Debug("Log read failed for '{0}': {1}", logFile, ex.Message);
                     }
                 }
             }
-            catch (Exception ex)
+            catch (IOException ex)
+            {
+                Logger.Debug("Log discovery failed in '{0}': {1}", logDir, ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
             {
                 Logger.Debug("Log discovery failed in '{0}': {1}", logDir, ex.Message);
             }
