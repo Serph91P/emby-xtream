@@ -143,7 +143,7 @@ namespace Emby.Xtream.Plugin.Client
 
                 // Also key by ch.Id (Dispatcharr's channel ID) so Config B works.
                 // ch.Id is Dispatcharr's own authoritative identifier, so it always
-                // overwrites — no ContainsKey guard. This prevents a cross-channel
+                // overwrites - no ContainsKey guard. This prevents a cross-channel
                 // collision where another channel's stream.StreamId happens to equal
                 // this channel's ch.Id, which would otherwise block the correct UUID.
                 uuidMap[ch.Id] = ch.Uuid;
@@ -173,7 +173,7 @@ namespace Emby.Xtream.Plugin.Client
             if (uuidMap.Count == 0)
             {
                 _logger.Warn(
-                    "Dispatcharr UUID map is empty — channels may have no stream sources or no UUIDs assigned");
+                    "Dispatcharr UUID map is empty - channels may have no stream sources or no UUIDs assigned");
             }
             else
             {

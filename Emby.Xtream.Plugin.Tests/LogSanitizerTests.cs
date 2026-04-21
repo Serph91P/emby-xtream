@@ -150,7 +150,7 @@ namespace Emby.Xtream.Plugin.Tests
         [Fact]
         public void CredentialSubstringReplacesPartialWords()
         {
-            // string.Replace matches substrings — documents this known behavior
+            // string.Replace matches substrings - documents this known behavior
             var result = LogSanitizer.SanitizeLine(
                 "the password field is empty", "", "pass", "", "");
             Assert.Equal("the <redacted>word field is empty", result);

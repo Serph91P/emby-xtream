@@ -34,13 +34,13 @@ namespace Emby.Xtream.Plugin.Service
             var config = Plugin.Instance.Configuration;
             if (!config.SyncMovies)
             {
-                _logger.Info("Movie sync disabled — skipping.");
+                _logger.Info("Movie sync disabled - skipping.");
                 return;
             }
             var svc = Plugin.Instance.StrmSyncService;
             if (svc.MovieProgress.IsRunning)
             {
-                _logger.Info("Movie sync already running — skipping scheduled run.");
+                _logger.Info("Movie sync already running - skipping scheduled run.");
                 return;
             }
             progress.Report(0);

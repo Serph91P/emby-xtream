@@ -5,7 +5,7 @@ namespace Emby.Xtream.Plugin.Tests.Fakes
 {
     /// <summary>
     /// Creates a unique temp directory for a test and deletes it on Dispose.
-    /// Use as a field in test classes — dispose in constructor via IDisposable or in each test.
+    /// Use as a field in test classes - dispose in constructor via IDisposable or in each test.
     /// </summary>
     public sealed class TempDirectory : IDisposable
     {

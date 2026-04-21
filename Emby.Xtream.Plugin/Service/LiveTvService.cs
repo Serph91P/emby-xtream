@@ -543,7 +543,7 @@ namespace Emby.Xtream.Plugin.Service
                 }
             }
 
-            // 4. Fall back to per-channel JSON (get_simple_data_table) — Xtream server only.
+            // 4. Fall back to per-channel JSON (get_simple_data_table) - Xtream server only.
             //    Custom URL mode does not fall back: if the user's URL failed, return empty so
             //    GetProgramsInternal shows a dummy placeholder rather than silently using a
             //    different source.
@@ -661,7 +661,7 @@ namespace Emby.Xtream.Plugin.Service
                     _xmltvFailedTime = DateTime.UtcNow;
                     var isCustom = config.EpgSource == EpgSourceMode.CustomUrl;
                     _logger.Warn(isCustom
-                        ? "Custom EPG URL fetch failed — no fallback: {0}"
+                        ? "Custom EPG URL fetch failed - no fallback: {0}"
                         : "XMLTV EPG fetch failed, will fall back to per-channel JSON: {0}", ex.Message);
                     return false;
                 }

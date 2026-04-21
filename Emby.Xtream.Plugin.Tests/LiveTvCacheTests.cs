@@ -147,7 +147,7 @@ namespace Emby.Xtream.Plugin.Tests
 
         /// <summary>
         /// When XMLTV has never failed, the retry-due check is vacuously false but
-        /// the combined condition (!xmltvFailed || retryDue) is true — meaning we
+        /// the combined condition (!xmltvFailed || retryDue) is true - meaning we
         /// do attempt a fresh XMLTV fetch even before a failure has occurred.
         /// </summary>
         [Fact]

@@ -1,4 +1,4 @@
-# Test Expansion Design — Integration + Harness
+# Test Expansion Design - Integration + Harness
 
 **Date**: 2026-03-07
 **Status**: Approved
@@ -25,7 +25,7 @@ expose factory helpers. All new integration test classes inherit from the approp
 
 ---
 
-## Section 1 — Shared Harness
+## Section 1 - Shared Harness
 
 ### `Emby.Xtream.Plugin.Tests/Fakes/FakeHttpHandler.cs`
 
@@ -51,17 +51,17 @@ recursively in `Dispose()`. Exposes `string Path` for use as `StrmLibraryPath`.
 Base class for sync integration tests. Provides:
 
 - `FakeHttpHandler Handler` + `HttpClient HttpClient` wired to it
-- `TempDirectory TempDir` — disposed after each test
-- `int SaveConfigCallCount` — incremented by the `saveConfig` delegate passed to sync methods
-- `PluginConfiguration DefaultConfig` — pre-built with:
+- `TempDirectory TempDir` - disposed after each test
+- `int SaveConfigCallCount` - incremented by the `saveConfig` delegate passed to sync methods
+- `PluginConfiguration DefaultConfig` - pre-built with:
   - `StrmLibraryPath` = `TempDir.Path`
   - `SmartSkipExisting = false`
   - `CleanupOrphans = false`
-  - `OrphanSafetyThreshold = 0.0` (disabled — avoids threshold interfering with cleanup tests)
-  - `StrmNamingVersion = CurrentStrmNamingVersion` (current — avoids auto-upgrade noise)
+  - `OrphanSafetyThreshold = 0.0` (disabled - avoids threshold interfering with cleanup tests)
+  - `StrmNamingVersion = CurrentStrmNamingVersion` (current - avoids auto-upgrade noise)
   - `EnableNfoFiles = true`
-- `StrmSyncService MakeService()` — returns service with fake `HttpClient` injected
-- `Action SaveConfig` — delegate that increments `SaveConfigCallCount`; passed to sync calls
+- `StrmSyncService MakeService()` - returns service with fake `HttpClient` injected
+- `Action SaveConfig` - delegate that increments `SaveConfigCallCount`; passed to sync calls
 - `VodStream(...)` / `SeriesInfo(...)` / `EpisodeInfo(...)` factory methods for test data JSON
 
 ### `Emby.Xtream.Plugin.Tests/TunerTestBase.cs`
@@ -77,9 +77,9 @@ sync, then assert the file content is still `"SENTINEL"` afterward.
 
 ---
 
-## Section 2 — Production Code Changes
+## Section 2 - Production Code Changes
 
-### `StrmSyncService` — extract all `Plugin.Instance.SaveConfiguration()` calls
+### `StrmSyncService` - extract all `Plugin.Instance.SaveConfiguration()` calls
 
 Three call sites currently exist inside `StrmSyncService`:
 
@@ -108,7 +108,7 @@ public async Task SyncSeriesAsync(
 private bool CheckAndUpgradeNamingVersion(PluginConfiguration config, Action saveConfig)
 ```
 
-### `SyncMoviesTask` / `SyncSeriesTask` — update call sites
+### `SyncMoviesTask` / `SyncSeriesTask` - update call sites
 
 ```csharp
 await svc.SyncMoviesAsync(
@@ -119,7 +119,7 @@ await svc.SyncMoviesAsync(
 
 Same for `SyncSeriesAsync`. Two files, one line change each.
 
-### `StrmSyncService` — `HttpClient` injection
+### `StrmSyncService` - `HttpClient` injection
 
 ```csharp
 private readonly HttpClient _httpClient;
@@ -137,15 +137,15 @@ All internal HTTP calls that currently use `SharedHttpClient` switch to `_httpCl
 ### What is explicitly NOT changed
 
 - No interface extraction, no DI container, no mocking framework
-- `writtenPaths` comparer is already `StringComparer.OrdinalIgnoreCase` — correct, no change
-- `NfoWriter` — writes to a real path; tested via `TempDirectory`
+- `writtenPaths` comparer is already `StringComparer.OrdinalIgnoreCase` - correct, no change
+- `NfoWriter` - writes to a real path; tested via `TempDirectory`
 - No changes to `XtreamTunerHost` constructor or public API beyond `HttpClient` injection
 
 ---
 
-## Section 3 — Test Scenarios
+## Section 3 - Test Scenarios
 
-### `StrmSyncServiceTests` — additions to existing file (~20 new cases)
+### `StrmSyncServiceTests` - additions to existing file (~20 new cases)
 
 **Folder naming**
 - Movie + valid TMDB ID → folder name contains `[tmdbid=12345]`
@@ -184,68 +184,68 @@ All internal HTTP calls that currently use `SharedHttpClient` switch to `_httpCl
 
 ---
 
-### `SyncMoviesIntegrationTests` — new file (~10 tests)
+### `SyncMoviesIntegrationTests` - new file (~10 tests)
 
-- **Happy path** — provider returns one movie → `.strm` + `.nfo` written at correct relative
+- **Happy path** - provider returns one movie → `.strm` + `.nfo` written at correct relative
   path, `saveConfig` called to persist timestamp
-- **Smart-skip** — sentinel written, `SmartSkipExisting = true`, same timestamp →
+- **Smart-skip** - sentinel written, `SmartSkipExisting = true`, same timestamp →
   sentinel content unchanged after sync
-- **Naming version upgrade bypasses smart-skip** — sentinel written, `StrmNamingVersion = 0` →
+- **Naming version upgrade bypasses smart-skip** - sentinel written, `StrmNamingVersion = 0` →
   version upgrade fires, timestamp reset → sentinel overwritten; `saveConfig` called twice
   (once for upgrade, once for timestamp)
-- **`Added = 0` provider** — all streams have `Added = 0`, `LastMovieSyncTimestamp = 100` →
+- **`Added = 0` provider** - all streams have `Added = 0`, `LastMovieSyncTimestamp = 100` →
   movies treated as unchanged (not new); `SmartSkipExisting = false` → files still written;
   `saveConfig` NOT called for timestamp update (0 not > 100)
-- **Orphan flat** — `OldMovie.strm` pre-written, not in new response, `CleanupOrphans = true`
+- **Orphan flat** - `OldMovie.strm` pre-written, not in new response, `CleanupOrphans = true`
   → file deleted
-- **Orphan threshold aborted** — 12 pre-written files, 1 in new response (91% ratio),
+- **Orphan threshold aborted** - 12 pre-written files, 1 in new response (91% ratio),
   `OrphanSafetyThreshold = 0.5` → cleanup skipped, all 12 preserved; requires >10 files
   because threshold check only fires when `existingStrms.Length > 10`
-- **Orphan threshold allows** — 12 pre-written files, 10 in new response (17% ratio),
+- **Orphan threshold allows** - 12 pre-written files, 10 in new response (17% ratio),
   threshold 0.5 → 2 deleted
-- **HTTP 500** — fake returns 500 on stream fetch → sync throws, progress phase contains "Failed"
-- **Empty response** — provider returns `[]` → no files written, no crash, `saveConfig` not
+- **HTTP 500** - fake returns 500 on stream fetch → sync throws, progress phase contains "Failed"
+- **Empty response** - provider returns `[]` → no files written, no crash, `saveConfig` not
   called for timestamp
 
 ---
 
-### `SyncSeriesIntegrationTests` — new file (~10 tests)
+### `SyncSeriesIntegrationTests` - new file (~10 tests)
 
-- **Happy path** — series + 2 episodes → `Shows/Series [tvdbid=N]/Season 01/S01E01.strm` and
+- **Happy path** - series + 2 episodes → `Shows/Series [tvdbid=N]/Season 01/S01E01.strm` and
   `S01E02.strm` written at correct paths
-- **Episode title deduplication on disk** — provider embeds series name in episode title →
+- **Episode title deduplication on disk** - provider embeds series name in episode title →
   actual filename on disk does not contain the duplicated series name segment
-- **Smart-skip sentinel** — sentinel episode file, series timestamp unchanged,
+- **Smart-skip sentinel** - sentinel episode file, series timestamp unchanged,
   `SmartSkipExisting = true` → sentinel content preserved
-- **Naming version forces re-sync** — sentinel written, version 0 < 1 → timestamp reset to 0 →
+- **Naming version forces re-sync** - sentinel written, version 0 < 1 → timestamp reset to 0 →
   `isChangedSeries` becomes true (because `lastSeriesTs == 0`) → episode loop runs → sentinel
   overwritten; note: mechanism is timestamp-based, not a skip override
-- **Orphan in season subdir** — `Shows/OldShow/Season 01/S01E01.strm` pre-written, series not
+- **Orphan in season subdir** - `Shows/OldShow/Season 01/S01E01.strm` pre-written, series not
   in new response, `CleanupOrphans = true` → strm file deleted, empty `Season 01/` dir deleted,
   empty `OldShow/` dir deleted
-- **`Added = 0` provider** — same semantics as movie equivalent; series treated as unchanged
+- **`Added = 0` provider** - same semantics as movie equivalent; series treated as unchanged
   when `LastSeriesSyncTimestamp` was previously set
-- **Series with no episodes** — series in response, episode list returns `[]` → series dir
+- **Series with no episodes** - series in response, episode list returns `[]` → series dir
   created (NFO written), no crash, no `.strm` files
-- **Multi-season** — episodes with `season_num = 1` and `season_num = 2` → written to
+- **Multi-season** - episodes with `season_num = 1` and `season_num = 2` → written to
   `Season 01/` and `Season 02/` respectively
 
 ---
 
-### `XtreamTunerHostTests` — new file (~10 tests)
+### `XtreamTunerHostTests` - new file (~10 tests)
 
-- **Dispatcharr path** — Dispatcharr enabled → `MediaSourceInfo.Path` is
+- **Dispatcharr path** - Dispatcharr enabled → `MediaSourceInfo.Path` is
   `/proxy/ts/stream/{uuid}`, `SupportsProbing = false`, `AnalyzeDurationMs = 0`
-- **Direct Xtream path** — Dispatcharr disabled → path is raw Xtream stream URL
-- **AC3 → 6 channels** — `stream_stats.audio_codec = "ac3"` → `AudioChannels = 6`
-- **EAC3 → 6 channels** — same
-- **MP2 → 2 channels** — `audio_codec = "mp2"` → `AudioChannels = 2`
+- **Direct Xtream path** - Dispatcharr disabled → path is raw Xtream stream URL
+- **AC3 → 6 channels** - `stream_stats.audio_codec = "ac3"` → `AudioChannels = 6`
+- **EAC3 → 6 channels** - same
+- **MP2 → 2 channels** - `audio_codec = "mp2"` → `AudioChannels = 2`
 - **Unknown codec → no channel count forced**
-- **Stats for wrong stream ID** — stats cache populated for ID 999, request for ID 42 → ID 42
+- **Stats for wrong stream ID** - stats cache populated for ID 999, request for ID 42 → ID 42
   gets no-stats defaults, not ID 999's values
-- **`SupportsDirectStream`** — stats present → `true`; no stats → `false`
-- **`ForceAudioTranscode`** — config flag set → reflected on media source
-- **UserAgent propagation** — `config.HttpUserAgent` set → present in `HttpUserAgent` field
+- **`SupportsDirectStream`** - stats present → `true`; no stats → `false`
+- **`ForceAudioTranscode`** - config flag set → reflected on media source
+- **UserAgent propagation** - `config.HttpUserAgent` set → present in `HttpUserAgent` field
   on the media source
 
 ---
@@ -269,4 +269,4 @@ All internal HTTP calls that currently use `SharedHttpClient` switch to `_httpCl
 - Concurrent sync runs (requires threading harness)
 - `TmdbLookupService` HTTP tests (covered by `DispatcharrClientTests` pattern; add separately)
 - `SyncHistoryJson` corruption recovery (low risk; serialisation is standard STJ)
-- E2E browser tests (`tests/e2e/`) — separate Playwright suite
+- E2E browser tests (`tests/e2e/`) - separate Playwright suite
