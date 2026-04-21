@@ -17,6 +17,7 @@ namespace Emby.Xtream.Plugin.Client.Models
         public string Rating { get; set; } = string.Empty;
 
         [JsonPropertyName("category_id")]
+        [JsonConverter(typeof(StringOrNumberAsNullableIntConverter))]
         public int? CategoryId { get; set; }
 
         [JsonPropertyName("container_extension")]
