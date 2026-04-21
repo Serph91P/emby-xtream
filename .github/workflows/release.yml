@@ -2,55 +2,44 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
 
 permissions:
   contents: write
+  issues: write
+  pull-requests: write
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
-      - name: Build plugin
-        run: |
-          VERSION=${GITHUB_REF_NAME#v}
-          cd Emby.Xtream.Plugin
-          dotnet publish -c Release -o out --no-self-contained -p:Version=$VERSION
-
-      - name: Generate release notes
-        id: notes
-        run: |
-          # Find previous tag
-          PREV_TAG=$(git tag --sort=-v:refname | grep '^v' | sed -n '2p')
-          if [ -z "$PREV_TAG" ]; then
-            RANGE="HEAD"
-          else
-            RANGE="${PREV_TAG}..HEAD"
-          fi
-          # Build notes from commit messages (skip merge commits)
-          {
-            echo "## What's Changed"
-            echo ""
-            git log "$RANGE" --no-merges --pretty=format:"- %s" | grep -v "Co-Authored-By"
-            echo ""
-            echo ""
-            if [ -n "$PREV_TAG" ]; then
-              echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${{ github.ref_name }}"
-            fi
-          } > release_notes.md
-
-      - name: Create draft release
-        uses: softprops/action-gh-release@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          files: Emby.Xtream.Plugin/out/Emby.Xtream.Plugin.dll
-          body_path: release_notes.md
-          draft: true
+          node-version: 'lts/*'
+
+      - name: Install semantic-release dependencies
+        run: |
+          npm install --save-dev \
+            semantic-release \
+            @semantic-release/commit-analyzer \
+            @semantic-release/release-notes-generator \
+            @semantic-release/exec \
+            @semantic-release/github
+
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release
