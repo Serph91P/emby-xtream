@@ -95,6 +95,10 @@ namespace Emby.Xtream.Plugin.Api
     [Route("/XtreamTuner/TestConnection", "POST", Summary = "Tests connection to Xtream server")]
     public class TestXtreamConnection : IReturn<TestConnectionResult>
     {
+        public string Url { get; set; }
+        public string Username { get; set; }
+        public string Password { get; set; }
+        public string UserAgent { get; set; }
     }
 
     [Route("/XtreamTuner/TestDispatcharr", "POST", Summary = "Tests connection to Dispatcharr")]
@@ -106,7 +110,7 @@ namespace Emby.Xtream.Plugin.Api
     }
 
     [Route("/XtreamTuner/DispatcharrProfiles", "GET", Summary = "Gets Channel Profiles from Dispatcharr")]
-    public class GetDispatcharrProfiles : IReturn<List<Client.Models.DispatcharrProfile>>
+    public class GetDispatcharrProfiles : IReturn<DispatcharrProfilesResult>
     {
     }
 
@@ -164,6 +168,8 @@ namespace Emby.Xtream.Plugin.Api
     {
         public bool Success { get; set; }
         public string Message { get; set; }
+        public string BackendType { get; set; }
+        public string BackendName { get; set; }
     }
 
     public class BrowsePathResult
@@ -171,6 +177,13 @@ namespace Emby.Xtream.Plugin.Api
         public string CurrentPath { get; set; }
         public string ParentPath { get; set; }
         public List<string> Directories { get; set; }
+    }
+
+    public class DispatcharrProfilesResult
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; }
+        public List<Client.Models.DispatcharrProfile> Profiles { get; set; } = new List<Client.Models.DispatcharrProfile>();
     }
 
     public class InstallUpdateResult
@@ -925,9 +938,22 @@ namespace Emby.Xtream.Plugin.Api
             var config = Plugin.Instance.Configuration;
             var result = new TestConnectionResult();
 
-            if (string.IsNullOrEmpty(config.BaseUrl) ||
-                string.IsNullOrEmpty(config.Username) ||
-                string.IsNullOrEmpty(config.Password))
+            var baseUrl = !string.IsNullOrWhiteSpace(request.Url)
+                ? request.Url.TrimEnd('/')
+                : (config.BaseUrl ?? string.Empty).TrimEnd('/');
+            var username = !string.IsNullOrWhiteSpace(request.Username)
+                ? request.Username
+                : config.Username;
+            var password = !string.IsNullOrWhiteSpace(request.Password)
+                ? request.Password
+                : config.Password;
+            var userAgent = !string.IsNullOrWhiteSpace(request.UserAgent)
+                ? request.UserAgent
+                : config.HttpUserAgent;
+
+            if (string.IsNullOrEmpty(baseUrl) ||
+                string.IsNullOrEmpty(username) ||
+                string.IsNullOrEmpty(password))
             {
                 result.Success = false;
                 result.Message = "Please configure server URL, username, and password first.";
@@ -939,9 +965,9 @@ namespace Emby.Xtream.Plugin.Api
                 var url = string.Format(
                     System.Globalization.CultureInfo.InvariantCulture,
                     "{0}/player_api.php?username={1}&password={2}",
-                    config.BaseUrl, Uri.EscapeDataString(config.Username), Uri.EscapeDataString(config.Password));
+                    baseUrl, Uri.EscapeDataString(username), Uri.EscapeDataString(password));
 
-                using (var httpClient = Plugin.CreateHttpClient())
+                using (var httpClient = Plugin.CreateHttpClient(10, userAgent))
                 {
                     var response = await httpClient.GetStringAsync(url).ConfigureAwait(false);
 
@@ -949,6 +975,18 @@ namespace Emby.Xtream.Plugin.Api
                     {
                         using (var doc = System.Text.Json.JsonDocument.Parse(response))
                         {
+                            var detectedBackend = BackendDetector.DetectFromXtreamResponse(baseUrl, doc.RootElement);
+                            if (string.Equals(detectedBackend, BackendTypes.Unknown, StringComparison.OrdinalIgnoreCase))
+                            {
+                                detectedBackend = await BackendDetector.DetectDispatcharrProbeAsync(
+                                    httpClient,
+                                    baseUrl,
+                                    CancellationToken.None).ConfigureAwait(false);
+                            }
+
+                            result.BackendType = detectedBackend;
+                            result.BackendName = BackendTypes.ToDisplayName(detectedBackend);
+
                             if (doc.RootElement.TryGetProperty("user_info", out var userInfo))
                             {
                                 var auth = 0;
@@ -965,16 +1003,36 @@ namespace Emby.Xtream.Plugin.Api
                                 if (userInfo.TryGetProperty("status", out var statusEl))
                                     status = statusEl.GetString();
 
+                                string active = null;
+                                if (userInfo.TryGetProperty("active_cons", out var activeEl))
+                                    active = activeEl.ToString();
+
+                                string maxConnections = null;
+                                if (userInfo.TryGetProperty("max_connections", out var maxEl))
+                                    maxConnections = maxEl.ToString();
+
                                 if (auth == 1)
                                 {
                                     result.Success = true;
-                                    result.Message = "Connection successful!";
+                                    result.Message = string.Format(
+                                        "Connection successful ({0}){1}{2}.",
+                                        result.BackendName,
+                                        string.IsNullOrWhiteSpace(status) ? string.Empty : ", status: " + status,
+                                        string.IsNullOrWhiteSpace(active)
+                                            ? string.Empty
+                                            : string.Format(
+                                                ", streams: {0}{1}",
+                                                active,
+                                                string.IsNullOrWhiteSpace(maxConnections) ? string.Empty : "/" + maxConnections));
+
+                                    PersistBackendDetection(config, result.BackendType, result.BackendName);
                                 }
                                 else
                                 {
                                     result.Success = false;
                                     result.Message = string.Format(
-                                        "Authentication failed: account status is '{0}'.",
+                                        "Authentication failed ({0}): account status is '{1}'.",
+                                        result.BackendName,
                                         status ?? "unknown");
                                 }
                             }
@@ -989,6 +1047,13 @@ namespace Emby.Xtream.Plugin.Api
                     {
                         result.Success = false;
                         result.Message = "Server did not return a valid Xtream API response. Verify the server URL.";
+
+                        var probeType = await BackendDetector.DetectDispatcharrProbeAsync(
+                            httpClient,
+                            baseUrl,
+                            CancellationToken.None).ConfigureAwait(false);
+                        result.BackendType = probeType;
+                        result.BackendName = BackendTypes.ToDisplayName(probeType);
                     }
                 }
             }
@@ -996,9 +1061,24 @@ namespace Emby.Xtream.Plugin.Api
             {
                 result.Success = false;
                 result.Message = "Connection failed: " + ex.Message;
+                result.BackendType = BackendTypes.Unknown;
+                result.BackendName = BackendTypes.ToDisplayName(result.BackendType);
             }
 
             return result;
+        }
+
+        private static void PersistBackendDetection(PluginConfiguration config, string backendType, string backendName)
+        {
+            if (config == null)
+            {
+                return;
+            }
+
+            config.DetectedBackendType = backendType ?? BackendTypes.Unknown;
+            config.DetectedBackendName = backendName ?? BackendTypes.ToDisplayName(BackendTypes.Unknown);
+            config.LastBackendDetectionTicks = DateTime.UtcNow.Ticks;
+            Plugin.Instance.SaveConfiguration();
         }
 
         public async Task<object> Post(TestDispatcharrConnection request)
@@ -1041,7 +1121,14 @@ namespace Emby.Xtream.Plugin.Api
         {
             var config = Plugin.Instance?.Configuration;
             if (config == null || !config.EnableDispatcharr || string.IsNullOrEmpty(config.DispatcharrUrl))
-                return new List<Client.Models.DispatcharrProfile>();
+            {
+                return new DispatcharrProfilesResult
+                {
+                    Success = false,
+                    Message = "Dispatcharr is not enabled or URL is missing.",
+                    Profiles = new List<Client.Models.DispatcharrProfile>()
+                };
+            }
 
             try
             {
@@ -1057,12 +1144,22 @@ namespace Emby.Xtream.Plugin.Api
                     profiles.Select(p => new { p.Id, p.Name }).ToList());
                 Plugin.Instance.SaveConfiguration();
 
-                return profiles;
+                return new DispatcharrProfilesResult
+                {
+                    Success = true,
+                    Message = string.Format("Loaded {0} profiles.", profiles.Count),
+                    Profiles = profiles
+                };
             }
             catch (Exception ex)
             {
                 Logger.Warn("Failed to fetch Dispatcharr profiles: {0}", ex.Message);
-                return new List<Client.Models.DispatcharrProfile>();
+                return new DispatcharrProfilesResult
+                {
+                    Success = false,
+                    Message = "Failed to fetch Dispatcharr profiles: " + ex.Message,
+                    Profiles = new List<Client.Models.DispatcharrProfile>()
+                };
             }
         }
 

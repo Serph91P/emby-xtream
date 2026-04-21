@@ -86,6 +86,14 @@ function (BaseView, loading) {
             validateStrmPath(view);
         });
 
+        view.querySelector('.txtBaseUrl').addEventListener('input', function () {
+            updateUrlSecurityWarnings(view);
+        });
+
+        view.querySelector('.txtDispatcharrUrl').addEventListener('input', function () {
+            updateUrlSecurityWarnings(view);
+        });
+
         view.querySelector('.btnBrowseStrmPath').addEventListener('click', function () {
             openBrowser(view);
         });
@@ -313,6 +321,8 @@ function (BaseView, loading) {
                 }
             });
         }
+
+        initSettingsCollapsibles(view);
         switchTab(view, 'dashboard');
     }
 
@@ -336,6 +346,7 @@ function (BaseView, loading) {
             view.querySelector('.txtUsername').value = config.Username || '';
             view.querySelector('.txtPassword').value = config.Password || '';
             view.querySelector('.txtHttpUserAgent').value = config.HttpUserAgent || '';
+            setBackendDetectionHint(view, config.DetectedBackendName || '', config.DetectedBackendType || '');
 
             view.querySelector('.chkEnableLiveTv').checked = config.EnableLiveTv !== false;
             view.querySelector('.selOutputFormat').value = config.LiveTvOutputFormat || 'ts';
@@ -367,6 +378,7 @@ function (BaseView, loading) {
             view.querySelector('.txtDispatcharrPass').value = config.DispatcharrPass || '';
             view.querySelector('.chkDispatcharrFallback').checked = config.DispatcharrFallbackToXtream !== false;
             view.querySelector('.chkForceAudioTranscode').checked = !!config.ForceAudioTranscode;
+            updateUrlSecurityWarnings(view);
 
             instance.selectedDispatcharrProfileIds = config.SelectedDispatcharrProfileIds || [];
             loadCachedDispatcharrProfiles(instance, config);
@@ -640,6 +652,111 @@ function (BaseView, loading) {
         v.querySelector('.autoSyncDailyContainer').style.display    = mode === 'daily'    ? '' : 'none';
     }
 
+    function updateUrlSecurityWarnings(view) {
+        var xtreamUrl = (view.querySelector('.txtBaseUrl').value || '').trim();
+        var dispatcharrUrl = (view.querySelector('.txtDispatcharrUrl').value || '').trim();
+
+        var xtreamWarning = view.querySelector('.xtreamInsecureWarning');
+        var dispatcharrWarning = view.querySelector('.dispatcharrInsecureWarning');
+
+        if (xtreamWarning) {
+            xtreamWarning.style.display = shouldWarnAboutHttpCredentials(xtreamUrl) ? '' : 'none';
+        }
+
+        if (dispatcharrWarning) {
+            dispatcharrWarning.style.display = shouldWarnAboutHttpCredentials(dispatcharrUrl) ? '' : 'none';
+        }
+    }
+
+    function shouldWarnAboutHttpCredentials(url) {
+        if (!url || url.toLowerCase().indexOf('http://') !== 0) {
+            return false;
+        }
+
+        var host = extractUrlHost(url);
+        if (!host) {
+            return true;
+        }
+
+        var normalized = host.toLowerCase();
+        if (normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '::1') {
+            return false;
+        }
+
+        if (isPrivateIpv4(normalized)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    function extractUrlHost(url) {
+        try {
+            var parsed = new URL(url);
+            return parsed.hostname || '';
+        } catch (e) {
+            return '';
+        }
+    }
+
+    function isPrivateIpv4(host) {
+        if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
+            return false;
+        }
+
+        var parts = host.split('.').map(function (p) { return parseInt(p, 10); });
+        if (parts.some(function (p) { return isNaN(p) || p < 0 || p > 255; })) {
+            return false;
+        }
+
+        if (parts[0] === 10) {
+            return true;
+        }
+
+        if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) {
+            return true;
+        }
+
+        if (parts[0] === 192 && parts[1] === 168) {
+            return true;
+        }
+
+        return false;
+    }
+
+    function initSettingsCollapsibles(view) {
+        var detailsList = view.querySelectorAll('.tabGeneric details[data-collapse-key]');
+        for (var i = 0; i < detailsList.length; i++) {
+            (function (detailsEl) {
+                var key = detailsEl.getAttribute('data-collapse-key');
+                if (!key) {
+                    return;
+                }
+
+                var storageKey = 'xtreamTuner.' + key;
+
+                try {
+                    var saved = window.localStorage.getItem(storageKey);
+                    if (saved === 'open') {
+                        detailsEl.open = true;
+                    } else if (saved === 'closed') {
+                        detailsEl.open = false;
+                    }
+                } catch (e) {
+                    // Ignore storage errors to keep settings page usable in locked-down browsers.
+                }
+
+                detailsEl.addEventListener('toggle', function () {
+                    try {
+                        window.localStorage.setItem(storageKey, detailsEl.open ? 'open' : 'closed');
+                    } catch (e) {
+                        // Ignore storage errors.
+                    }
+                });
+            }(detailsList[i]));
+        }
+    }
+
     function buildTriggers(config) {
         if (!config.AutoSyncEnabled) return [];
         if (config.AutoSyncMode === 'daily') {
@@ -829,53 +946,35 @@ function (BaseView, loading) {
         var url = view.querySelector('.txtBaseUrl').value.replace(/\/+$/, '');
         var user = view.querySelector('.txtUsername').value;
         var pass = view.querySelector('.txtPassword').value;
+        var userAgent = view.querySelector('.txtHttpUserAgent').value;
 
         if (!url || !user || !pass) {
             setPillResult(resultEl, false, 'Please enter server URL, username, and password.');
+            setBackendDetectionHint(view, '', '');
             return;
         }
 
-        var testUrl = url + '/player_api.php?username=' + encodeURIComponent(user) + '&password=' + encodeURIComponent(pass);
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', testUrl, true);
-        xhr.timeout = 10000;
-
-        xhr.onload = function () {
-            if (xhr.status >= 200 && xhr.status < 300) {
-                try {
-                    var resp = JSON.parse(xhr.responseText);
-                    if (resp.user_info) {
-                        var status = resp.user_info.status || 'unknown';
-                        var msg = 'Connected as ' + user + ' — status: ' + status;
-                        if (resp.user_info.active_cons !== undefined) {
-                            msg += ', ' + resp.user_info.active_cons;
-                            if (resp.user_info.max_connections !== undefined) {
-                                msg += '/' + resp.user_info.max_connections;
-                            }
-                            msg += ' active streams';
-                        }
-                        setPillResult(resultEl, true, msg);
-                    } else {
-                        setPillResult(resultEl, true, 'Connection successful!');
-                    }
-                } catch (e) {
-                    setPillResult(resultEl, true, 'Connection successful (non-JSON response).');
-                }
+        ApiClient.ajax({
+            type: 'POST',
+            url: ApiClient.getUrl('XtreamTuner/TestConnection'),
+            contentType: 'application/json',
+            data: JSON.stringify({
+                Url: url,
+                Username: user,
+                Password: pass,
+                UserAgent: userAgent
+            }),
+            dataType: 'json'
+        }).then(function (result) {
+            setPillResult(resultEl, !!result.Success, result.Message || 'Connection test completed.');
+            setBackendDetectionHint(view, result.BackendName || '', result.BackendType || '');
+            if (result.Success) {
                 saveConfig(instance);
-            } else {
-                setPillResult(resultEl, false, 'Connection failed (HTTP ' + xhr.status + ').');
             }
-        };
-
-        xhr.onerror = function () {
-            setPillResult(resultEl, false, 'Connection failed. Check URL and ensure server is reachable.');
-        };
-
-        xhr.ontimeout = function () {
-            setPillResult(resultEl, false, 'Connection timed out.');
-        };
-
-        xhr.send();
+        }).catch(function () {
+            setPillResult(resultEl, false, 'Test request failed. Check server logs.');
+            setBackendDetectionHint(view, '', '');
+        });
     }
 
     // ---- Folder browser ----
@@ -1027,18 +1126,36 @@ function (BaseView, loading) {
         var view = instance.view;
         var listEl = view.querySelector('.dispatcharrProfilesList');
         var loadingEl = view.querySelector('.dispatcharrProfilesLoading');
+        var resultEl = view.querySelector('.dispatcharrProfilesResult');
 
         loadingEl.style.display = 'block';
         listEl.innerHTML = '';
         listEl.appendChild(loadingEl);
+        if (resultEl) {
+            resultEl.innerHTML = '<span style="opacity:0.6; font-size:0.9em;">Loading...</span>';
+        }
 
         var apiUrl = ApiClient.getUrl('XtreamTuner/DispatcharrProfiles');
-        ApiClient.getJSON(apiUrl).then(function (profiles) {
+        ApiClient.getJSON(apiUrl).then(function (payload) {
+            var profiles = payload;
+            var message = '';
+
+            if (payload && payload.Profiles !== undefined) {
+                profiles = payload.Profiles || [];
+                message = payload.Message || '';
+                if (payload.Success === false) {
+                    throw new Error(message || 'Failed to refresh profiles.');
+                }
+            }
+
             loadingEl.style.display = 'none';
             instance.loadedDispatcharrProfiles = profiles;
 
             if (!profiles || profiles.length === 0) {
                 listEl.innerHTML = '<div style="opacity:0.5;">No profiles found. Check Dispatcharr connection settings.</div>';
+                if (resultEl) {
+                    setPillResult(resultEl, true, message || 'Refresh completed. No profiles returned.');
+                }
                 return;
             }
 
@@ -1046,9 +1163,16 @@ function (BaseView, loading) {
             view.querySelector('.btnSelectAllProfiles').disabled = false;
             view.querySelector('.btnDeselectAllProfiles').disabled = false;
             updateProfileCountBadge(view);
-        }).catch(function () {
+            if (resultEl) {
+                setPillResult(resultEl, true, message || ('Loaded ' + profiles.length + ' profile' + (profiles.length === 1 ? '' : 's') + '.'));
+            }
+        }).catch(function (err) {
             loadingEl.style.display = 'none';
             listEl.innerHTML = '<div style="color:#cc4444;">Failed to load profiles. Save Dispatcharr settings first.</div>';
+            if (resultEl) {
+                var msg = err && err.message ? err.message : 'Failed to refresh profiles. Check Dispatcharr settings and server logs.';
+                setPillResult(resultEl, false, msg);
+            }
         });
     }
 
@@ -2345,6 +2469,23 @@ function (BaseView, loading) {
         var cls = isSuccess ? 'success' : 'error';
         var icon = isSuccess ? '\u2713' : '\u2717';
         el.innerHTML = '<span class="result-pill ' + cls + '">' + icon + '  ' + escapeHtml(message) + '</span>';
+    }
+
+    function setBackendDetectionHint(view, backendName, backendType) {
+        var hintEl = view.querySelector('.backendDetectionHint');
+        if (!hintEl) {
+            return;
+        }
+
+        if (!backendName && !backendType) {
+            hintEl.style.display = 'none';
+            hintEl.textContent = '';
+            return;
+        }
+
+        var label = backendName || backendType;
+        hintEl.textContent = 'Detected backend: ' + label;
+        hintEl.style.display = '';
     }
 
 
