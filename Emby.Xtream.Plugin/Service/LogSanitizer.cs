@@ -24,6 +24,22 @@ namespace Emby.Xtream.Plugin.Service
             @"(https?://)([^/:]+)(:\d+)?(/player_api\.php|/live/|/movie/|/series/)",
             RegexOptions.Compiled);
 
+        private static readonly Regex QueryCredentialRegex = new Regex(
+            @"([?&](?:username|password)=)[^&\s]+",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        private static readonly Regex QueryApiKeyRegex = new Regex(
+            @"([?&]api_key=)[^&\s]+",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        private static readonly Regex BearerTokenRegex = new Regex(
+            "(Authorization\\s*:\\s*Bearer\\s+)([^\\s,;\"']+)",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        private static readonly Regex JsonTokenFieldRegex = new Regex(
+            "(\"(?:access|refresh|token)\"\\s*:\\s*\")(.*?)(\")",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
         /// <summary>
         /// Sanitizes a single log line by redacting PII: known credentials, IP addresses,
         /// Xtream URL credentials, emails, and provider hostnames.
@@ -62,6 +78,14 @@ namespace Emby.Xtream.Plugin.Service
 
             // Redact Xtream credentials in URLs: /live/user/pass/
             s = XtreamCredRegex.Replace(s, "/live/<user>/<pass>/");
+
+            // Redact query parameter credentials and API keys.
+            s = QueryCredentialRegex.Replace(s, "$1<redacted>");
+            s = QueryApiKeyRegex.Replace(s, "$1<redacted>");
+
+            // Redact common token formats from headers and JSON payload snippets.
+            s = BearerTokenRegex.Replace(s, "$1<redacted>");
+            s = JsonTokenFieldRegex.Replace(s, "$1<redacted>$3");
 
             // Redact email patterns
             s = EmailRegex.Replace(s, "<email-redacted>");

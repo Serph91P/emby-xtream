@@ -50,10 +50,12 @@ namespace Emby.Xtream.Plugin
         /// <summary>
         /// Creates an HttpClient configured with the plugin's User-Agent setting.
         /// </summary>
-        public static HttpClient CreateHttpClient(int timeoutSeconds = 10)
+        public static HttpClient CreateHttpClient(int timeoutSeconds = 10, string userAgentOverride = null)
         {
             var client = new HttpClient { Timeout = TimeSpan.FromSeconds(timeoutSeconds) };
-            var ua = _instance?.Configuration?.HttpUserAgent;
+            var ua = !string.IsNullOrEmpty(userAgentOverride)
+                ? userAgentOverride
+                : _instance?.Configuration?.HttpUserAgent;
             if (!string.IsNullOrEmpty(ua))
                 client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", ua);
             return client;

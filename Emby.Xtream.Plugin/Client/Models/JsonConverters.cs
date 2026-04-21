@@ -79,4 +79,54 @@ namespace Emby.Xtream.Plugin.Client.Models
         public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
             => writer.WriteStringValue(value);
     }
+
+    /// <summary>
+    /// Reads a JSON value that may be a number, numeric string, or a non-numeric token such as
+    /// "all" and surfaces it as <see cref="int?"/>. Non-numeric values map to null.
+    /// </summary>
+    internal sealed class StringOrNumberAsNullableIntConverter : JsonConverter<int?>
+    {
+        public override int? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.Number)
+            {
+                return reader.GetInt32();
+            }
+
+            if (reader.TokenType == JsonTokenType.String)
+            {
+                var s = reader.GetString();
+                if (string.IsNullOrWhiteSpace(s))
+                {
+                    return null;
+                }
+
+                if (int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed))
+                {
+                    return parsed;
+                }
+
+                return null;
+            }
+
+            if (reader.TokenType == JsonTokenType.Null)
+            {
+                return null;
+            }
+
+            throw new JsonException($"Unexpected token {reader.TokenType} for nullable int field.");
+        }
+
+        public override void Write(Utf8JsonWriter writer, int? value, JsonSerializerOptions options)
+        {
+            if (value.HasValue)
+            {
+                writer.WriteNumberValue(value.Value);
+            }
+            else
+            {
+                writer.WriteNullValue();
+            }
+        }
+    }
 }

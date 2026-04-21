@@ -26,6 +26,7 @@ namespace Emby.Xtream.Plugin.Client.Models
         public long Added { get; set; }
 
         [JsonPropertyName("category_id")]
+        [JsonConverter(typeof(StringOrNumberAsNullableIntConverter))]
         public int? CategoryId { get; set; }
 
         [JsonPropertyName("custom_sid")]

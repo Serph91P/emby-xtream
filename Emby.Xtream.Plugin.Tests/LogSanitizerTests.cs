@@ -138,6 +138,54 @@ namespace Emby.Xtream.Plugin.Tests
             Assert.DoesNotContain("host.com", result);
         }
 
+        [Fact]
+        public void RedactsUsernameAndPasswordQueryParameters()
+        {
+            var result = LogSanitizer.SanitizeLine(
+                "GET /player_api.php?username=alice&password=supersecret&action=get_live_streams",
+                "", "", "", "");
+
+            Assert.Contains("username=<redacted>", result);
+            Assert.Contains("password=<redacted>", result);
+            Assert.DoesNotContain("alice", result);
+            Assert.DoesNotContain("supersecret", result);
+        }
+
+        [Fact]
+        public void RedactsApiKeyQueryParameter()
+        {
+            var result = LogSanitizer.SanitizeLine(
+                "GET /XtreamTuner/Logs?api_key=abcdef123456",
+                "", "", "", "");
+
+            Assert.Contains("api_key=<redacted>", result);
+            Assert.DoesNotContain("abcdef123456", result);
+        }
+
+        [Fact]
+        public void RedactsBearerAuthorizationHeader()
+        {
+            var result = LogSanitizer.SanitizeLine(
+                "Authorization: Bearer not-a-real-token-for-tests",
+                "", "", "", "");
+
+            Assert.Contains("Authorization: Bearer <redacted>", result);
+            Assert.DoesNotContain("not-a-real-token-for-tests", result);
+        }
+
+        [Fact]
+        public void RedactsJsonTokenFields()
+        {
+            var result = LogSanitizer.SanitizeLine(
+                "{\"access\":\"token123\",\"refresh\":\"token456\"}",
+                "", "", "", "");
+
+            Assert.Contains("\"access\":\"<redacted>\"", result);
+            Assert.Contains("\"refresh\":\"<redacted>\"", result);
+            Assert.DoesNotContain("token123", result);
+            Assert.DoesNotContain("token456", result);
+        }
+
         [Theory]
         [InlineData("Loading Plugin, Version=1.2.0.0, Culture=neutral")]
         [InlineData("File Emby.dll has version 4.8.0.80")]

@@ -275,6 +275,56 @@
                         opacity: 0.9;
                     }
                     .tabGeneric hr { display: none; }
+
+                    .settings-collapsible,
+                    .settings-subgroup {
+                        border: 1px solid rgba(128,128,128,0.2);
+                        border-radius: 8px;
+                        margin-bottom: 1em;
+                        background: rgba(128,128,128,0.03);
+                    }
+                    .settings-collapsible > summary,
+                    .settings-subgroup > summary {
+                        cursor: pointer;
+                        list-style: none;
+                        padding: 0.85em 1em;
+                        font-weight: 700;
+                        border-bottom: 1px solid rgba(128,128,128,0.15);
+                    }
+                    .settings-subgroup > summary {
+                        font-size: 0.95em;
+                        font-weight: 600;
+                    }
+                    .settings-collapsible > summary::-webkit-details-marker,
+                    .settings-subgroup > summary::-webkit-details-marker {
+                        display: none;
+                    }
+                    .settings-collapsible > summary::before,
+                    .settings-subgroup > summary::before {
+                        content: '\25B6';
+                        display: inline-block;
+                        margin-right: 0.5em;
+                        opacity: 0.7;
+                        transition: transform 0.15s ease;
+                    }
+                    .settings-collapsible[open] > summary::before,
+                    .settings-subgroup[open] > summary::before {
+                        transform: rotate(90deg);
+                    }
+                    .settings-collapsible > .verticalSection,
+                    .settings-subgroup > .verticalSection {
+                        margin: 0;
+                        border: 0;
+                        background: transparent;
+                    }
+                    .settings-collapsible > summary + .verticalSection,
+                    .settings-subgroup > summary + .verticalSection {
+                        padding-top: 1em;
+                    }
+                    .settings-collapsible .settings-subgroup {
+                        margin: 0.8em 0 0.4em;
+                        border-color: rgba(128,128,128,0.17);
+                    }
                 </style>
 
                 <div class="configTabs" style="display:flex; gap:0; margin-bottom:1.5em; border-bottom:2px solid rgba(128,128,128,0.15);">
@@ -411,6 +461,8 @@
                 <!-- ===== Settings ===== -->
                 <div class="tabPanel tabGeneric" style="display:none;">
 
+                <details class="settings-collapsible" data-collapse-key="settings.xtream" open>
+                    <summary>Xtream Connection</summary>
                 <div class="verticalSection">
                     <h2 class="sectionTitle">Xtream Connection</h2>
                     <div class="inputContainer">
@@ -419,12 +471,15 @@
                         <div class="fieldDescription">
                             Base URL of your Xtream-compatible server, without trailing slash.
                         </div>
+                        <div class="xtreamInsecureWarning fieldDescription" style="display:none; color:#e67e22; margin-top:0.35em;">
+                            Warning: this URL uses HTTP. Credentials are sent without transport encryption.
+                        </div>
                     </div>
                     <div class="inputContainer">
                         <input class="txtUsername" type="text" is="emby-input" label="Username" />
                     </div>
                     <div class="inputContainer">
-                        <input class="txtPassword" type="password" is="emby-input" label="Password" />
+                        <input class="txtPassword" type="password" is="emby-input" autocomplete="new-password" label="Password" />
                     </div>
                     <div class="fieldDescription" style="margin-top:-0.25em; margin-bottom:0.75em;">
                         If you are pointing this at Dispatcharr, use the <strong>Xtream API credentials</strong> from Dispatcharr (Settings → Xtream Codes), not your Dispatcharr web UI login.
@@ -439,10 +494,14 @@
                         <span>Test Connection</span>
                     </button>
                     <div class="connectionTestResult" style="margin-top:0.5em;"></div>
+                    <div class="backendDetectionHint fieldDescription" style="margin-top:0.5em; display:none;"></div>
                 </div>
+                </details>
 
                 <hr style="border:none; border-top:1px solid rgba(128,128,128,0.2); margin:0.25em 0 1.25em;" />
 
+                <details class="settings-collapsible" data-collapse-key="settings.strm" open>
+                    <summary>STRM File Generation</summary>
                 <div class="verticalSection">
                     <h2 class="sectionTitle">STRM Sync Settings</h2>
                     <div style="display:flex; gap:0.5em; align-items:flex-end;">
@@ -533,8 +592,8 @@
                     </div>
                 </div>
 
-                <hr style="border:none; border-top:1px solid rgba(128,128,128,0.2); margin:0.25em 0 1.25em;" />
-
+                <details class="settings-subgroup" data-collapse-key="settings.strm.namecleaning" open>
+                    <summary>Name Cleaning</summary>
                 <div class="verticalSection">
                     <h2 class="sectionTitle">Name Cleaning</h2>
                     <div class="checkboxContainer checkboxContainer-withDescription">
@@ -560,9 +619,10 @@
                         </div>
                     </div>
                 </div>
+                </details>
 
-                <hr style="border:none; border-top:1px solid rgba(128,128,128,0.2); margin:0.25em 0 1.25em;" />
-
+                <details class="settings-subgroup" data-collapse-key="settings.strm.tmdb" open>
+                    <summary>TMDB / TVDb Matching</summary>
                 <div class="verticalSection">
                     <h2 class="sectionTitle">TMDB / TVDb Matching</h2>
                     <div class="fieldDescription" style="margin-bottom:1em;">
@@ -605,9 +665,13 @@
                         </div>
                     </div>
                 </div>
+                </details>
+                </details>
 
                 <hr style="border:none; border-top:1px solid rgba(128,128,128,0.2); margin:0.25em 0 1.25em;" />
 
+                <details class="settings-collapsible" data-collapse-key="settings.dispatcharr" open>
+                    <summary>Dispatcharr Integration</summary>
                 <div class="verticalSection">
                     <h2 class="sectionTitle">Dispatcharr Integration</h2>
                     <div class="fieldDescription" style="margin-bottom:0.8em;">
@@ -634,13 +698,16 @@
                         <div class="inputContainer">
                             <input class="txtDispatcharrUrl" type="text" is="emby-input"
                                    label="Dispatcharr URL (e.g. http://example.com:5656)" />
+                            <div class="dispatcharrInsecureWarning fieldDescription" style="display:none; color:#e67e22; margin-top:0.35em;">
+                                Warning: this URL uses HTTP. Dispatcharr credentials are sent without transport encryption.
+                            </div>
                         </div>
                         <div class="inputContainer">
                             <input class="txtDispatcharrUser" type="text" is="emby-input"
                                    label="Dispatcharr Username" />
                         </div>
                         <div class="inputContainer">
-                            <input class="txtDispatcharrPass" type="password" is="emby-input"
+                            <input class="txtDispatcharrPass" type="password" is="emby-input" autocomplete="new-password"
                                    label="Dispatcharr Password" />
                         </div>
                         <div class="fieldDescription" style="margin-top:-0.25em; margin-bottom:0.75em;">
@@ -676,6 +743,7 @@
                                 <span class="profileCountSelected">0</span> / <span class="profileCountTotal">0</span> selected
                             </span>
                         </div>
+                        <div class="dispatcharrProfilesResult" style="margin-bottom:0.5em;"></div>
                         <div class="dispatcharrProfilesList" style="max-height:250px; overflow-y:auto; border:1px solid rgba(128,128,128,0.15); border-radius:4px; padding:0.5em;">
                             <div class="dispatcharrProfilesLoading" style="display:none; opacity:0.5;">Loading profiles...</div>
                         </div>
@@ -705,9 +773,12 @@
                         </div>
                     </div>
                 </div>
+                </details>
 
                 <hr style="border:none; border-top:1px solid rgba(128,128,128,0.2); margin:0.25em 0 1.25em;" />
 
+                <details class="settings-collapsible" data-collapse-key="settings.updates" open>
+                    <summary>Updates</summary>
                 <div class="verticalSection">
                     <h2 class="sectionTitle">Updates</h2>
                     <div class="checkboxContainer checkboxContainer-withDescription">
@@ -720,6 +791,7 @@
                         </div>
                     </div>
                 </div>
+                </details>
 
                 </div><!-- end tabGeneric -->
 
@@ -1056,6 +1128,7 @@
                         <button class="btnLoadCategories raised button-secondary" is="emby-button" type="button">
                             <span>Refresh Categories</span>
                         </button>
+                        <span class="liveCategoriesStatus" style="margin-left:0.5em;"></span>
                         <button class="btnSelectAllCategories raised button-secondary" is="emby-button" type="button"
                                 style="margin-left:0.5em;" disabled>
                             <span>Select All</span>

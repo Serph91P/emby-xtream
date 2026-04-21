@@ -285,5 +285,22 @@ namespace Emby.Xtream.Plugin.Tests
             Assert.Equal(0, svc.MovieProgress.Total);
             Assert.Equal(0, SaveConfigCallCount);
         }
+
+        [Fact]
+        public async Task M3uEditorStylePayload_WritesStrmFile()
+        {
+            var config = DefaultConfig();
+
+            // m3u-editor returns Xtream-compatible arrays with extra fields,
+            // mixed string/number values, and string category IDs.
+            RegisterVodStreams("[{\"num\":1,\"name\":\"Movie From m3u-editor\",\"stream_type\":\"movie\",\"stream_id\":901,\"stream_icon\":\"https://img.test/poster.jpg\",\"rating\":\"7.2\",\"rating_5based\":3.6,\"added\":\"1710000000\",\"category_id\":\"42\",\"category_ids\":[42],\"tmdb\":\"550\",\"tmdb_id\":550,\"container_extension\":\"mkv\",\"custom_sid\":\"\",\"direct_source\":\"\"}]");
+
+            await MakeService().SyncMoviesAsync(config, None, SaveConfig);
+
+            var folderName = "Movie From m3u-editor";
+            var strmPath = Path.Join(TempDir.Path, "Movies", folderName, folderName + ".strm");
+            Assert.True(File.Exists(strmPath), $"Expected STRM file at: {strmPath}");
+            Assert.Equal("http://fake-xtream/movie/user/pass/901.mkv", File.ReadAllText(strmPath));
+        }
     }
 }
