@@ -1,7 +1,7 @@
-# ADR-001: Bypass Dispatcharr Proxy — Use Xtream Emulation URL
+# ADR-001: Bypass Dispatcharr Proxy - Use Xtream Emulation URL
 
 **Date**: 2026-02-20
-**Status**: REVERTED — see Outcome section
+**Status**: REVERTED - see Outcome section
 **Affects**: `XtreamTunerHost.BuildStreamUrl()`
 
 ---
@@ -19,8 +19,8 @@ See the Outcome section at the bottom for the full explanation.
 
 Dispatcharr offers two streaming endpoints:
 
-1. **Proxy** (`/proxy/ts/stream/{uuid}`) — buffered proxy with Redis-backed client tracking
-2. **Xtream emulation** (`/live/{user}/{pass}/{id}.ts`) — direct passthrough using Xtream API conventions
+1. **Proxy** (`/proxy/ts/stream/{uuid}`) - buffered proxy with Redis-backed client tracking
+2. **Xtream emulation** (`/live/{user}/{pass}/{id}.ts`) - direct passthrough using Xtream API conventions
 
 Both route through Dispatcharr's load balancer. The plugin originally used the proxy endpoint.
 
@@ -28,12 +28,12 @@ Both route through Dispatcharr's load balancer. The plugin originally used the p
 
 At the time, the proxy endpoint appeared fundamentally unreliable:
 
-- **HTTP 503**: Proxy returned `Server returned 5XX Server Error reply` — ffmpeg failed immediately
+- **HTTP 503**: Proxy returned `Server returned 5XX Server Error reply` - ffmpeg failed immediately
 - **Orphaned Redis state**: Interrupted connections left Redis keys blocking ALL subsequent proxy connections
 - **CLOSE-WAIT cascades**: Each failed attempt worsened the stuck state
 - **0-byte race condition**: Even when it returned 200, the buffer appeared empty
 
-These were diagnosed as architectural issues — stemming from the proxy's client-tracking model.
+These were diagnosed as architectural issues - stemming from the proxy's client-tracking model.
 
 ## What We Tried
 
@@ -45,10 +45,10 @@ Changed `BuildStreamUrl()` to use `/live/{user}/{pass}/{id}.ts` instead of `/pro
 (`ts_proxy.views` → `stream_manager` → Redis buffer). It is not a separate code path. The
 assumption that it bypassed the proxy was incorrect.
 
-### Attempt 2: Modify Dispatcharr source — fix `chunk_available` event
+### Attempt 2: Modify Dispatcharr source - fix `chunk_available` event
 
 Identified two bugs in Dispatcharr's streaming pipeline:
-- `stream_buffer.py`: `chunk_available.set()` immediately followed by `chunk_available.clear()` —
+- `stream_buffer.py`: `chunk_available.set()` immediately followed by `chunk_available.clear()` -
   dead notification, no consumer could catch it
 - `stream_generator.py`: polling backoff capped at 1.0s, combined with ~1.5s cold-start and
   ffmpeg's 3s analyzeduration, total exceeds Emby's 10s kill timeout
@@ -74,8 +74,8 @@ flush Redis, fresh clone from `main`) was performed.
 **After the reinstall, the proxy endpoint worked immediately and reliably.**
 
 This proves the original symptoms (503 errors, orphaned channels, CLOSE-WAIT, 0-byte buffers)
-were caused by **accumulated corruption in the old Dispatcharr installation** — stale Redis keys,
-orphaned DB state, and lingering CLOSE-WAIT connections from months of interrupted connections —
+were caused by **accumulated corruption in the old Dispatcharr installation** - stale Redis keys,
+orphaned DB state, and lingering CLOSE-WAIT connections from months of interrupted connections -
 **not by any architectural flaw in the proxy endpoint itself.**
 
 The proxy endpoint is sound. Other users in the community had zero issues with it throughout

@@ -206,7 +206,7 @@ namespace Emby.Xtream.Plugin.Tests
         }
 
         // -------------------------------------------------------------------------
-        // GetChannelDataAsync — key strategy
+        // GetChannelDataAsync - key strategy
         //
         // Maps are keyed by BOTH stream.StreamId (Config A: plugin → upstream Xtream
         // provider) AND ch.Id (Config B: plugin → Dispatcharr Xtream emulation).
@@ -217,7 +217,7 @@ namespace Emby.Xtream.Plugin.Tests
         {
             // Moonshine's scenario: plugin points at the upstream Xtream provider.
             // ch.Id (5398) is Dispatcharr's internal ID.
-            // stream.stream_id (69307) is the provider's stream_id — what Emby stores.
+            // stream.stream_id (69307) is the provider's stream_id - what Emby stores.
             // The UUID must be reachable via the provider stream_id (69307).
             var channelsJson = JsonSerializer.Serialize(new[]
             {
@@ -500,7 +500,7 @@ namespace Emby.Xtream.Plugin.Tests
             Assert.True(statsMap.ContainsKey(300));
             Assert.Equal("h264", statsMap[300].VideoCodec);
 
-            // stream_id=301 gets the second (hevc) stats — it is a distinct key
+            // stream_id=301 gets the second (hevc) stats - it is a distinct key
             Assert.True(statsMap.ContainsKey(301));
             Assert.Equal("hevc", statsMap[301].VideoCodec);
 

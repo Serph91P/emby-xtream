@@ -267,7 +267,7 @@ namespace Emby.Xtream.Plugin.Service
 
                 if (name != null && string.Equals(name, assetName, StringComparison.OrdinalIgnoreCase))
                 {
-                    // Found the matching asset — now find browser_download_url near this position
+                    // Found the matching asset - now find browser_download_url near this position
                     // Look backwards for the start of this object (the '{' before this "name")
                     var objStart = assetsSection.LastIndexOf('{', nameIdx);
                     // Look forwards for the end of this object

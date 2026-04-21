@@ -9,7 +9,7 @@
 ## Context
 
 Emby serves plugin configuration pages (`config.html`, `config.js`) with `Cache-Control: public`
-but no `max-age` directive. Browsers apply heuristic freshness and skip revalidation — meaning
+but no `max-age` directive. Browsers apply heuristic freshness and skip revalidation - meaning
 after a plugin DLL update, users can get stale HTML/JS until they manually hard-refresh.
 
 The `?v=4.9.3.0` query parameter that Emby appends is tied to the **Emby server version**, not the
@@ -31,7 +31,7 @@ Rename the HTML/JS page name (e.g. `xtreamconfig` → `xtreamconfig2`) so the br
 completely new URL with no cache history.
 
 **Tried and failed.** Emby's SPA uses hash-based navigation (`#!/configurationpage?name=...`).
-Changing the page name broke navigation — the old cached HTML still referenced the old name,
+Changing the page name broke navigation - the old cached HTML still referenced the old name,
 and bookmarks/links stopped working. Had to be reverted across two commits (`4f62452` →
 `8fb3214`). Not viable without controlling Emby's routing layer.
 
@@ -41,13 +41,13 @@ Have `build.sh` use `sed` to replace a `var _BUILD_VERSION = 'dev'` sentinel in 
 with the real version (e.g. `'1.4.15'`) before `dotnet publish`, then restore the file. At
 runtime, compare the stamped version against `data.PluginVersion` from the Dashboard API.
 
-**Pros**: JS knows exactly what version it is — can detect staleness even on first visit.
+**Pros**: JS knows exactly what version it is - can detect staleness even on first visit.
 **Cons**: Build script complexity (sed, .bak file, trap/restore). Fragile if build is
-interrupted — working tree left dirty. Two files to coordinate. The `'dev'` sentinel means
+interrupted - working tree left dirty. Two files to coordinate. The `'dev'` sentinel means
 it's inert during development, which is both a pro and a con.
 
 Rejected because the runtime mechanism (fetch pre-warm + reload) is identical to Solution 3,
-and the only advantage — detecting staleness on first-ever visit — is too rare a scenario to
+and the only advantage - detecting staleness on first-ever visit - is too rare a scenario to
 justify the build complexity.
 
 ### 3. localStorage version tracking (chosen)
@@ -62,7 +62,7 @@ pre-warm the cache with `fetch({ cache: 'reload' })` and reload the page.
 
 ### How It Works
 
-1. The Dashboard API (`/emby/xtream/dashboard`) now returns `PluginVersion` — the assembly
+1. The Dashboard API (`/emby/xtream/dashboard`) now returns `PluginVersion` - the assembly
    version read from `typeof(Plugin).Assembly.GetName().Version`.
 
 2. On every dashboard load, `config.js` compares `data.PluginVersion` against
@@ -85,7 +85,7 @@ pre-warm the cache with `fetch({ cache: 'reload' })` and reload the page.
 - **`XtreamTunerApi.cs`**: Added `PluginVersion` property to `DashboardResult` class;
   populated from `typeof(Plugin).Assembly.GetName().Version?.ToString()`.
 
-- **`config.js`**: 18 lines in the `loadDashboard` callback — localStorage check, fetch
+- **`config.js`**: 18 lines in the `loadDashboard` callback - localStorage check, fetch
   pre-warm with `{ cache: 'reload' }`, sessionStorage reload guard. Also renders the version
   string in the health bar via `renderDashboardStatus`.
 
@@ -123,22 +123,22 @@ the check is skipped entirely. No reload, no error. The feature is inert.
 `Assembly.GetName().Version` returns the four-part version from the `.csproj` `<Version>`
 property (e.g. `1.4.15.0`), which is set by `build.sh` from the latest git tag. During
 local development without tags, this may be `1.0.0.0`. The localStorage comparison is a
-simple string equality check — any difference triggers a bust.
+simple string equality check - any difference triggers a bust.
 
 ## How to Revert
 
 If users report issues (infinite reloads, broken page after update, etc.):
 
-1. **Quick disable** — remove or comment out the 18-line block in `config.js` between
+1. **Quick disable** - remove or comment out the 18-line block in `config.js` between
    `// Auto-bust browser cache when plugin was updated.` and
    `sessionStorage.removeItem('xtream-cache-bust');` (inclusive). The `PluginVersion` field
    in the API response is harmless and can stay.
 
-2. **Full revert** — also remove `PluginVersion` from `DashboardResult` and the assembly
+2. **Full revert** - also remove `PluginVersion` from `DashboardResult` and the assembly
    version read in `GetDashboard()`, and move `.pluginVersion` back above the health bar
    in `config.html`.
 
-3. **User-side recovery** — if a single user is stuck in a reload loop (should not happen
+3. **User-side recovery** - if a single user is stuck in a reload loop (should not happen
    due to sessionStorage guard, but just in case):
    ```
    // In browser console:
@@ -156,7 +156,7 @@ No errors visible in the console (catch blocks swallowed them).
 **Root cause**: `renderAutoSyncDashboardLine()` called `.indexOf()` on
 `config.LastMovieSyncTimestamp`, which is a Unix epoch **number** (e.g. `1771625207`), not a
 date string. The resulting `TypeError` crashed `loadConfig`'s `.then()` callback, and
-`checkForUpdate()` — which was called inside that callback — never ran.
+`checkForUpdate()` - which was called inside that callback - never ran.
 
 **Fix**: Handle numeric timestamps: `typeof lastTs === 'number' ? new Date(lastTs * 1000) : new Date(lastTs)`.
 Also added the error object to all `.catch()` `console.error()` calls so future failures are
@@ -168,14 +168,14 @@ the catch block discarded the error.
 
 ### Bug 2: `checkForUpdate` depended on `loadConfig` success
 
-**Symptom**: Same as Bug 1 — no update banner.
+**Symptom**: Same as Bug 1 - no update banner.
 
 **Root cause**: `checkForUpdate(view)` was called at the end of `loadConfig`'s `.then()`
 callback. When `loadConfig` crashed (Bug 1), `checkForUpdate` never executed.
 
 **Fix**: Call `checkForUpdate(this.view)` directly from `onResume`, alongside `loadConfig`
 and `loadDashboard`, so it runs independently. Also removed the DOM checkbox dependency for
-the beta channel — `checkForUpdate` no longer reads `.chkUseBetaChannel.checked` from the
+the beta channel - `checkForUpdate` no longer reads `.chkUseBetaChannel.checked` from the
 form (which requires `loadConfig` to have populated it). Instead, the server reads
 `UseBetaChannel` from its own persisted config via `Plugin.Instance.Configuration`.
 
@@ -194,7 +194,7 @@ to prevent re-showing the banner for an already-installed update. During testing
 we later downgraded the DLL and tried to test the banner path, the suppression kicked in.
 
 **Fix**: Clear `<LastInstalledVersion>` in the config XML on the server. No code change
-needed — this is working as designed, it just tripped us up during testing.
+needed - this is working as designed, it just tripped us up during testing.
 
 **Lesson**: When testing the update banner flow, remember that `LastInstalledVersion` persists
 across DLL swaps. Clear it in the config XML if you need to re-test the banner for the same
@@ -218,12 +218,12 @@ This is the exact user-facing problem the cache-bust mechanism solves for forwar
 
 ## Consequences
 
-- Every plugin update now triggers one automatic page reload on each user's first visit —
+- Every plugin update now triggers one automatic page reload on each user's first visit -
   transparent to the user but ensures they always see the correct UI.
 - No build script changes required. The mechanism is entirely runtime.
 - The Dashboard API response grows by one small string field (`PluginVersion`).
 - If this approach proves insufficient (e.g. the first-visit edge case matters), Solution 2
-  (build-time stamp) can be layered on top without conflict — it replaces the localStorage
+  (build-time stamp) can be layered on top without conflict - it replaces the localStorage
   check with an embedded version check but uses the same fetch + reload mechanism.
 
 ## Testing Checklist
@@ -232,7 +232,7 @@ When verifying the cache-bust and update banner in future releases:
 
 1. **Use incognito** for all testing across DLL version swaps
 2. **Clear `LastInstalledVersion`** in config XML if re-testing the banner for the same version
-3. **Check the browser console** for errors — both `loadConfig` and `checkForUpdate` now log
+3. **Check the browser console** for errors - both `loadConfig` and `checkForUpdate` now log
    the actual error object
 4. **Verify the API directly** with curl if the banner doesn't appear:
    ```bash

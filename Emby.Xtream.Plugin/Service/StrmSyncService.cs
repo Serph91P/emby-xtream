@@ -334,7 +334,7 @@ namespace Emby.Xtream.Plugin.Service
                     _logger.Info("TMDB IDs available: {0}/{1} movies ({2}%){3}",
                         withTmdb, allStreams.Count, pct,
                         config.EnableTmdbFallbackLookup
-                            ? string.Format(CultureInfo.InvariantCulture, " — TMDB fallback lookup enabled for {0} movies without IDs", without)
+                            ? string.Format(CultureInfo.InvariantCulture, " - TMDB fallback lookup enabled for {0} movies without IDs", without)
                             : string.Empty);
                 }
 
@@ -343,7 +343,7 @@ namespace Emby.Xtream.Plugin.Service
                 var writtenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 var semaphore = new SemaphoreSlim(config.SyncParallelism);
 
-                // Shared Dispatcharr VOD client — only queried per-movie, after smart-skip
+                // Shared Dispatcharr VOD client - only queried per-movie, after smart-skip
                 Emby.Xtream.Plugin.Client.DispatcharrClient dispatcharrVodClient = null;
                 if (config.EnableDispatcharr && !string.IsNullOrEmpty(config.DispatcharrUrl))
                 {
@@ -1574,7 +1574,7 @@ namespace Emby.Xtream.Plugin.Service
                             ?? new List<SeriesInfo>();
 
                         // Override category_id to match the requested category (same
-                        // cross-listing issue as VOD streams — see FetchVodStreamsAsync).
+                        // cross-listing issue as VOD streams - see FetchVodStreamsAsync).
                         foreach (var s in series)
                         {
                             s.CategoryId = catId;
@@ -1633,7 +1633,7 @@ namespace Emby.Xtream.Plugin.Service
                 if (ratio > safetyThreshold)
                 {
                     _logger.Warn(
-                        "Orphan cleanup skipped: {0}/{1} ({2:P0}) exceeds safety threshold {3:P0} — possible provider issue",
+                        "Orphan cleanup skipped: {0}/{1} ({2:P0}) exceeds safety threshold {3:P0} - possible provider issue",
                         orphanCount, existingStrms.Length, ratio, safetyThreshold);
                     return 0;
                 }

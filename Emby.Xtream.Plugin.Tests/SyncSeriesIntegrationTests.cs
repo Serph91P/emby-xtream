@@ -117,7 +117,7 @@ namespace Emby.Xtream.Plugin.Tests
             config.SmartSkipExisting = true;
             config.LastSeriesSyncTimestamp = 1000;
 
-            // Pre-write a sentinel — it must be overwritten because series has changed
+            // Pre-write a sentinel - it must be overwritten because series has changed
             var strmPath = EpisodeStrmPath("Test Show", season: 1, episode: 1, title: "Episode Title");
             Directory.CreateDirectory(Path.GetDirectoryName(strmPath));
             File.WriteAllText(strmPath, "SENTINEL");
@@ -298,7 +298,7 @@ namespace Emby.Xtream.Plugin.Tests
             var duplicatedPath = EpisodeStrmPath("Breaking Bad", season: 1, episode: 1,
                 title: "Breaking Bad - S01E01");
             Assert.False(File.Exists(duplicatedPath),
-                "Duplicated series name in filename — StripEpisodeTitleDuplicate should have removed it");
+                "Duplicated series name in filename - StripEpisodeTitleDuplicate should have removed it");
         }
 
         // -----------------------------------------------------------------
