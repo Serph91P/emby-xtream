@@ -4,9 +4,14 @@ on:
   push:
     branches:
       - main
+      - 'feature/**'
+      - 'fix/**'
+      - 'copilot/**'
+      - develop
   pull_request:
     branches:
       - main
+      - develop
 
 permissions:
   contents: read
@@ -37,7 +42,14 @@ jobs:
           dotnet build --no-restore --configuration Release Emby.Xtream.Plugin.Tests/Emby.Xtream.Plugin.Tests.csproj
 
       - name: Test
-        run: dotnet test --no-build --configuration Release --verbosity normal Emby.Xtream.Plugin.Tests/Emby.Xtream.Plugin.Tests.csproj
+        run: dotnet test --no-build --configuration Release --verbosity normal --logger "trx;LogFileName=test-results.trx" Emby.Xtream.Plugin.Tests/Emby.Xtream.Plugin.Tests.csproj
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: '**/*.trx'
 
   codeql:
     name: CodeQL Security Analysis
@@ -80,3 +92,4 @@ jobs:
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: moderate
+
