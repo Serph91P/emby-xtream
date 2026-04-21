@@ -670,8 +670,7 @@ namespace Emby.Xtream.Plugin.Service
                 {
                     foreach (var s in allSeries)
                     {
-                        long lm;
-                        if (long.TryParse(s.LastModified, NumberStyles.None, CultureInfo.InvariantCulture, out lm) && lm > lastSeriesTs)
+                        if (s.LastModified > lastSeriesTs)
                             deltaNew++;
                         else
                             deltaExisting++;
@@ -805,8 +804,7 @@ namespace Emby.Xtream.Plugin.Service
                         }
 
                         // Track max LastModified for delta state
-                        long seriesLm = 0;
-                        long.TryParse(series.LastModified, NumberStyles.None, CultureInfo.InvariantCulture, out seriesLm);
+                        long seriesLm = series.LastModified;
                         if (seriesLm > 0)
                         {
                             lock (_historyLock)

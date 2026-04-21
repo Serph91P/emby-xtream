@@ -36,7 +36,8 @@ namespace Emby.Xtream.Plugin.Client.Models
         public long StopTimestamp { get; set; }
 
         [JsonPropertyName("has_archive")]
-        public int HasArchive { get; set; }
+        [JsonConverter(typeof(IntAsBoolConverter))]
+        public bool HasArchive { get; set; }
 
         // Not from JSON — populated by XMLTV parser only
         [JsonIgnore] public bool IsLive { get; set; }
