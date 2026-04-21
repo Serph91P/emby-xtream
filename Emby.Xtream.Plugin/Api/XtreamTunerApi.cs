@@ -785,6 +785,12 @@ namespace Emby.Xtream.Plugin.Api
 
         public void Post(RefreshCache request)
         {
+            // Clear channel artwork BEFORE clearing the channel cache: artwork clearing
+            // needs the currently-cached channel list to identify which Emby library
+            // items belong to the Xtream tuner. Without this, stale logos from the
+            // upstream provider persist in Emby's image store until the next guide refresh.
+            XtreamTunerHost.Instance?.ClearWrongChannelArtwork();
+
             Plugin.Instance.LiveTvService.InvalidateCache();
             XtreamTunerHost.Instance?.ClearCaches();
         }

@@ -761,7 +761,7 @@ namespace Emby.Xtream.Plugin.Service
         /// window before the plugin detached. Correct artwork returns on the next guide
         /// refresh from the proper source.
         /// </summary>
-        private void ClearWrongChannelArtwork()
+        internal void ClearWrongChannelArtwork()
         {
             try
             {
