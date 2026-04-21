@@ -567,7 +567,10 @@ namespace Emby.Xtream.Plugin.Api
                     movieCount = Directory.GetFiles(moviesRoot, "*.strm", SearchOption.AllDirectories).Length;
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Logger.Debug("Dashboard movie stats scan failed: {0}", ex.Message);
+            }
 
             try
             {
@@ -580,7 +583,17 @@ namespace Emby.Xtream.Plugin.Api
                     var topDirs = Directory.GetDirectories(showsRoot, "*", SearchOption.TopDirectoryOnly);
                     var seriesDirList = isFlat
                         ? topDirs
-                        : topDirs.SelectMany(cat => { try { return Directory.GetDirectories(cat, "*", SearchOption.TopDirectoryOnly); } catch { return new string[0]; } }).ToArray();
+                        : topDirs.SelectMany(cat =>
+                        {
+                            try
+                            {
+                                return Directory.GetDirectories(cat, "*", SearchOption.TopDirectoryOnly);
+                            }
+                            catch (Exception)
+                            {
+                                return new string[0];
+                            }
+                        }).ToArray();
                     seriesCount = seriesDirList.Length;
                     foreach (var seriesDir in seriesDirList)
                     {
@@ -588,12 +601,18 @@ namespace Emby.Xtream.Plugin.Api
                         {
                             seasonCount += Directory.GetDirectories(seriesDir, "*", SearchOption.TopDirectoryOnly).Length;
                         }
-                        catch { }
+                        catch (Exception ex)
+                        {
+                            Logger.Debug("Dashboard season scan failed for '{0}': {1}", seriesDir, ex.Message);
+                        }
                     }
                     episodeCount = Directory.GetFiles(showsRoot, "*.strm", SearchOption.AllDirectories).Length;
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Logger.Debug("Dashboard series stats scan failed: {0}", ex.Message);
+            }
 
             // Compute next sync time
             DateTime? nextSyncTime = null;
@@ -722,7 +741,7 @@ namespace Emby.Xtream.Plugin.Api
                         }
                         if (movieInfoType != null) break;
                     }
-                    catch { }
+                    catch (Exception) { }
                 }
 
                 result.Message += " | MovieInfoType: " + (movieInfoType != null ? movieInfoType.FullName : "NOT FOUND");
@@ -836,7 +855,10 @@ namespace Emby.Xtream.Plugin.Api
                     dirs.Add(dir);
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Logger.Debug("BrowsePath failed for '{0}': {1}", path, ex.Message);
+            }
 
             var parentInfo = Directory.GetParent(path);
             var parentPath = (parentInfo == null || parentInfo.FullName == "/") ? null : parentInfo.FullName;
@@ -886,7 +908,9 @@ namespace Emby.Xtream.Plugin.Api
                     }
                 }
             }
-            catch { }
+            catch (Exception)
+            {
+            }
 
             paths.Sort();
             return paths;
@@ -901,7 +925,7 @@ namespace Emby.Xtream.Plugin.Api
                 File.Delete(testFile);
                 return true;
             }
-            catch
+            catch (Exception)
             {
                 return false;
             }
@@ -1241,7 +1265,7 @@ namespace Emby.Xtream.Plugin.Api
                     File.Move(tempPath, currentDll);
 
                     // Clean up backup on success
-                    try { File.Delete(bakPath); } catch { }
+                    try { File.Delete(bakPath); } catch (Exception ex) { Logger.Debug("InstallUpdate backup cleanup failed: {0}", ex.Message); }
                 }
                 catch
                 {
@@ -1251,9 +1275,9 @@ namespace Emby.Xtream.Plugin.Api
                         if (File.Exists(bakPath) && !File.Exists(currentDll))
                             File.Move(bakPath, currentDll);
                     }
-                    catch { }
+                    catch (Exception ex) { Logger.Debug("InstallUpdate backup restore failed: {0}", ex.Message); }
 
-                    try { File.Delete(tempPath); } catch { }
+                    try { File.Delete(tempPath); } catch (Exception ex) { Logger.Debug("InstallUpdate temp cleanup failed: {0}", ex.Message); }
                     throw;
                 }
 
@@ -1267,7 +1291,10 @@ namespace Emby.Xtream.Plugin.Api
                     config.LastInstalledVersion = checkResult.LatestVersion;
                     Plugin.Instance.SaveConfiguration();
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    Logger.Debug("InstallUpdate version persistence failed: {0}", ex.Message);
+                }
 
                 // Notify Emby that a restart is needed
                 try
@@ -1278,7 +1305,10 @@ namespace Emby.Xtream.Plugin.Api
                     if (notifyMethod != null)
                         notifyMethod.Invoke(appHost, null);
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    Logger.Debug("InstallUpdate restart notification failed: {0}", ex.Message);
+                }
 
                 result.Success = true;
                 result.Message = "Update installed successfully (" + dllBytes.Length + " bytes). Restart Emby to apply.";
@@ -1304,7 +1334,10 @@ namespace Emby.Xtream.Plugin.Api
                     restartMethod.Invoke(appHost, null);
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Logger.Warn("RestartEmby failed: {0}", ex.Message);
+            }
         }
 
         public object Post(SyncGuideMappings request)
@@ -1371,10 +1404,16 @@ namespace Emby.Xtream.Plugin.Api
                             }
                         }
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        Logger.Debug("Log read failed for '{0}': {1}", logFile, ex.Message);
+                    }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Logger.Debug("Log discovery failed in '{0}': {1}", logDir, ex.Message);
+            }
 
             // Sanitize PII
             var sanitized = new StringBuilder();
