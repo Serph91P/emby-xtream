@@ -135,6 +135,11 @@ function (BaseView, loading) {
             loadDispatcharrProfiles(self);
         });
 
+        // One-time listener so renderProfileList doesn't accumulate duplicates on every render
+        view.querySelector('.dispatcharrProfilesList').addEventListener('change', function () {
+            updateProfileCountBadge(view);
+        });
+
         view.querySelector('.btnSelectAllProfiles').addEventListener('click', function () {
             toggleAllProfiles(view, true);
         });
@@ -1125,12 +1130,12 @@ function (BaseView, loading) {
     function loadDispatcharrProfiles(instance) {
         var view = instance.view;
         var listEl = view.querySelector('.dispatcharrProfilesList');
-        var loadingEl = view.querySelector('.dispatcharrProfilesLoading');
         var resultEl = view.querySelector('.dispatcharrProfilesResult');
 
-        loadingEl.style.display = 'block';
-        listEl.innerHTML = '';
-        listEl.appendChild(loadingEl);
+        // Write the loading state directly — do NOT use appendChild(loadingEl) because
+        // every innerHTML replacement detaches that element, making querySelector return
+        // null on the second call and crashing the function.
+        listEl.innerHTML = '<div style="opacity:0.5;">Loading...</div>';
         if (resultEl) {
             resultEl.innerHTML = '<span style="opacity:0.6; font-size:0.9em;">Loading...</span>';
         }
@@ -1148,7 +1153,6 @@ function (BaseView, loading) {
                 }
             }
 
-            loadingEl.style.display = 'none';
             instance.loadedDispatcharrProfiles = profiles;
 
             if (!profiles || profiles.length === 0) {
@@ -1167,7 +1171,6 @@ function (BaseView, loading) {
                 setPillResult(resultEl, true, message || ('Loaded ' + profiles.length + ' profile' + (profiles.length === 1 ? '' : 's') + '.'));
             }
         }).catch(function (err) {
-            loadingEl.style.display = 'none';
             listEl.innerHTML = '<div style="color:#cc4444;">Failed to load profiles. Save Dispatcharr settings first.</div>';
             if (resultEl) {
                 var msg = err && err.message ? err.message : 'Failed to refresh profiles. Check Dispatcharr settings and server logs.';
@@ -1194,10 +1197,8 @@ function (BaseView, loading) {
         view.querySelector('.btnSelectAllProfiles').disabled = profiles.length === 0;
         view.querySelector('.btnDeselectAllProfiles').disabled = profiles.length === 0;
 
-        // Update count badge whenever a checkbox changes
-        listEl.addEventListener('change', function () {
-            updateProfileCountBadge(view);
-        });
+        // NOTE: the 'change' listener on listEl is registered once in the View constructor,
+        // not here, to avoid accumulating duplicate listeners on every render.
 
         updateProfileCountBadge(view);
     }
@@ -1340,7 +1341,7 @@ function (BaseView, loading) {
         var loadingEl = view.querySelector('.categoriesLoading');
         var statusEl = view.querySelector('.liveCategoriesStatus');
 
-        loadingEl.style.display = 'block';
+        if (loadingEl) loadingEl.style.display = 'block';
         listEl.innerHTML = '';
         if (statusEl) {
             statusEl.innerHTML = '<span style="opacity:0.6; font-size:0.9em;">Loading...</span>';
@@ -1349,7 +1350,7 @@ function (BaseView, loading) {
         var apiUrl = ApiClient.getUrl('XtreamTuner/Categories/Live');
 
         ApiClient.getJSON(apiUrl).then(function (categories) {
-            loadingEl.style.display = 'none';
+            if (loadingEl) loadingEl.style.display = 'none';
             instance.loadedCategories = categories;
 
             if (!categories || categories.length === 0) {
@@ -1380,7 +1381,7 @@ function (BaseView, loading) {
                 setPillResult(statusEl, true, 'Loaded ' + categories.length + ' categorie' + (categories.length === 1 ? 'y' : 's') + '.');
             }
         }).catch(function () {
-            loadingEl.style.display = 'none';
+            if (loadingEl) loadingEl.style.display = 'none';
             listEl.innerHTML = '<div style="color:#cc0000;">Failed to load categories. Save your connection settings first, then try again.</div>';
             if (statusEl) {
                 setPillResult(statusEl, false, 'Failed to refresh categories. Save settings first, then retry.');
@@ -1419,7 +1420,7 @@ function (BaseView, loading) {
         var loadingEl = view.querySelector('.vodCategoriesLoading');
         var statusEl = view.querySelector('.vodCategoriesStatus');
 
-        loadingEl.style.display = 'block';
+        if (loadingEl) loadingEl.style.display = 'block';
         listEl.innerHTML = '';
         if (statusEl) {
             statusEl.innerHTML = '<span style="opacity:0.6; font-size:0.9em;">Loading...</span>';
@@ -1428,7 +1429,7 @@ function (BaseView, loading) {
         var apiUrl = ApiClient.getUrl('XtreamTuner/Categories/Vod');
 
         ApiClient.getJSON(apiUrl).then(function (categories) {
-            loadingEl.style.display = 'none';
+            if (loadingEl) loadingEl.style.display = 'none';
             instance.loadedVodCategories = categories;
 
             if (!categories || categories.length === 0) {
@@ -1460,7 +1461,7 @@ function (BaseView, loading) {
             view.querySelector('.btnDeselectAllVodCategories').disabled = false;
             updateCategoryCountBadge(view, 'vod');
         }).catch(function () {
-            loadingEl.style.display = 'none';
+            if (loadingEl) loadingEl.style.display = 'none';
             listEl.innerHTML = '<div style="color:#cc0000;">Failed to load VOD categories. Save your connection settings first, then try again.</div>';
             if (statusEl) {
                 setPillResult(statusEl, false, 'Failed to refresh VOD categories. Save settings first, then retry.');
@@ -1481,8 +1482,7 @@ function (BaseView, loading) {
     function loadVodCategoriesMulti(instance) {
         var view = instance.view;
         var statusEl = view.querySelector('.vodCategoriesMultiStatus');
-        statusEl.textContent = 'Loading...';
-        statusEl.style.opacity = '0.5';
+        if (statusEl) { statusEl.textContent = 'Loading...'; statusEl.style.opacity = '0.5'; }
 
         var apiUrl = ApiClient.getUrl('XtreamTuner/Categories/Vod');
 
@@ -1490,18 +1490,15 @@ function (BaseView, loading) {
             instance.loadedVodCategories = categories || [];
 
             if (!categories || categories.length === 0) {
-                statusEl.textContent = 'No VOD categories found.';
-                statusEl.style.color = '#cc0000'; statusEl.style.opacity = '1';
+                if (statusEl) { statusEl.textContent = 'No VOD categories found.'; statusEl.style.color = '#cc0000'; statusEl.style.opacity = '1'; }
                 clearFolderCardCategories(view, 'movie');
                 return;
             }
 
-            statusEl.textContent = 'Loaded ' + categories.length + ' categories';
-            statusEl.style.color = '#52B54B'; statusEl.style.opacity = '1';
+            if (statusEl) { statusEl.textContent = 'Loaded ' + categories.length + ' categories'; statusEl.style.color = '#52B54B'; statusEl.style.opacity = '1'; }
             populateFolderCheckboxes(view, 'movie', categories);
         }).catch(function () {
-            statusEl.textContent = 'Failed to load categories. Save connection settings first.';
-            statusEl.style.color = '#cc0000'; statusEl.style.opacity = '1';
+            if (statusEl) { statusEl.textContent = 'Failed to load categories. Save connection settings first.'; statusEl.style.color = '#cc0000'; statusEl.style.opacity = '1'; }
         });
     }
 
@@ -1551,7 +1548,7 @@ function (BaseView, loading) {
         var loadingEl = view.querySelector('.seriesCategoriesLoading');
         var statusEl = view.querySelector('.seriesCategoriesStatus');
 
-        loadingEl.style.display = 'block';
+        if (loadingEl) loadingEl.style.display = 'block';
         listEl.innerHTML = '';
         if (statusEl) {
             statusEl.innerHTML = '<span style="opacity:0.6; font-size:0.9em;">Loading...</span>';
@@ -1560,7 +1557,7 @@ function (BaseView, loading) {
         var apiUrl = ApiClient.getUrl('XtreamTuner/Categories/Series');
 
         ApiClient.getJSON(apiUrl).then(function (categories) {
-            loadingEl.style.display = 'none';
+            if (loadingEl) loadingEl.style.display = 'none';
             instance.loadedSeriesCategories = categories;
 
             if (!categories || categories.length === 0) {
@@ -1592,7 +1589,7 @@ function (BaseView, loading) {
             view.querySelector('.btnDeselectAllSeriesCategories').disabled = false;
             updateCategoryCountBadge(view, 'series');
         }).catch(function () {
-            loadingEl.style.display = 'none';
+            if (loadingEl) loadingEl.style.display = 'none';
             listEl.innerHTML = '<div style="color:#cc0000;">Failed to load series categories. Save your connection settings first, then try again.</div>';
             if (statusEl) {
                 setPillResult(statusEl, false, 'Failed to refresh series categories. Save settings first, then retry.');
@@ -1613,8 +1610,7 @@ function (BaseView, loading) {
     function loadSeriesCategoriesMulti(instance) {
         var view = instance.view;
         var statusEl = view.querySelector('.seriesCategoriesMultiStatus');
-        statusEl.textContent = 'Loading...';
-        statusEl.style.opacity = '0.5';
+        if (statusEl) { statusEl.textContent = 'Loading...'; statusEl.style.opacity = '0.5'; }
 
         var apiUrl = ApiClient.getUrl('XtreamTuner/Categories/Series');
 
@@ -1622,18 +1618,15 @@ function (BaseView, loading) {
             instance.loadedSeriesCategories = categories || [];
 
             if (!categories || categories.length === 0) {
-                statusEl.textContent = 'No series categories found.';
-                statusEl.style.color = '#cc0000'; statusEl.style.opacity = '1';
+                if (statusEl) { statusEl.textContent = 'No series categories found.'; statusEl.style.color = '#cc0000'; statusEl.style.opacity = '1'; }
                 clearFolderCardCategories(view, 'series');
                 return;
             }
 
-            statusEl.textContent = 'Loaded ' + categories.length + ' categories';
-            statusEl.style.color = '#52B54B'; statusEl.style.opacity = '1';
+            if (statusEl) { statusEl.textContent = 'Loaded ' + categories.length + ' categories'; statusEl.style.color = '#52B54B'; statusEl.style.opacity = '1'; }
             populateFolderCheckboxes(view, 'series', categories);
         }).catch(function () {
-            statusEl.textContent = 'Failed to load categories. Save connection settings first.';
-            statusEl.style.color = '#cc0000'; statusEl.style.opacity = '1';
+            if (statusEl) { statusEl.textContent = 'Failed to load categories. Save connection settings first.'; statusEl.style.color = '#cc0000'; statusEl.style.opacity = '1'; }
         });
     }
 
