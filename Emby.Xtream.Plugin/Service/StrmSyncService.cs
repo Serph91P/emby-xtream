@@ -341,7 +341,7 @@ namespace Emby.Xtream.Plugin.Service
                 _logger.Info("Starting movie STRM sync for {0} streams", allStreams.Count);
 
                 var writtenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                using var semaphore = new SemaphoreSlim(config.SyncParallelism);
+                var semaphore = new SemaphoreSlim(config.SyncParallelism);
 
                 // Shared Dispatcharr VOD client - only queried per-movie, after smart-skip
                 Emby.Xtream.Plugin.Client.DispatcharrClient dispatcharrVodClient = null;
@@ -554,6 +554,7 @@ namespace Emby.Xtream.Plugin.Service
                 });
 
                 await Task.WhenAll(tasks).ConfigureAwait(false);
+                semaphore.Dispose();
 
                 // Cleanup orphans
                 if (config.CleanupOrphans)
@@ -684,7 +685,7 @@ namespace Emby.Xtream.Plugin.Service
                 }
 
                 var writtenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                using var semaphore = new SemaphoreSlim(config.SyncParallelism);
+                var semaphore = new SemaphoreSlim(config.SyncParallelism);
 
                 // Episode hash cache: load stored hashes so we can skip file I/O for unchanged series
                 var storedHashes = DeserializeEpisodeHashes(config.SeriesEpisodeHashesJson);
@@ -971,6 +972,7 @@ namespace Emby.Xtream.Plugin.Service
                 });
 
                 await Task.WhenAll(tasks).ConfigureAwait(false);
+                semaphore.Dispose();
 
                 // Cleanup orphans
                 if (config.CleanupOrphans)
@@ -1065,7 +1067,7 @@ namespace Emby.Xtream.Plugin.Service
 
             try
             {
-                using var semaphore = new SemaphoreSlim(config.SyncParallelism);
+                var semaphore = new SemaphoreSlim(config.SyncParallelism);
                 var categoryNames = new Dictionary<int, string>();
                 var folderMappings = FolderMappingParser.Parse(config.MovieFolderMappings);
                 var writtenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -1098,6 +1100,7 @@ namespace Emby.Xtream.Plugin.Service
                 });
 
                 await Task.WhenAll(tasks).ConfigureAwait(false);
+                semaphore.Dispose();
 
                 lock (_failedItemsLock)
                 {
@@ -1490,7 +1493,7 @@ namespace Emby.Xtream.Plugin.Service
             }
             else
             {
-                using var semaphore = new SemaphoreSlim(config.SyncParallelism);
+                var semaphore = new SemaphoreSlim(config.SyncParallelism);
                 var tasks = categoryIds.Select(async catId =>
                 {
                     await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -1528,6 +1531,7 @@ namespace Emby.Xtream.Plugin.Service
                 });
 
                 var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+                semaphore.Dispose();
                 foreach (var result in results)
                 {
                     allStreams.AddRange(result);
@@ -1558,7 +1562,7 @@ namespace Emby.Xtream.Plugin.Service
             }
             else
             {
-                using var semaphore = new SemaphoreSlim(config.SyncParallelism);
+                var semaphore = new SemaphoreSlim(config.SyncParallelism);
                 var tasks = categoryIds.Select(async catId =>
                 {
                     await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -1594,6 +1598,7 @@ namespace Emby.Xtream.Plugin.Service
                 });
 
                 var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+                semaphore.Dispose();
                 foreach (var result in results)
                 {
                     allSeries.AddRange(result);
