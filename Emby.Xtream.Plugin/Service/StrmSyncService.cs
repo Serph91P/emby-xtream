@@ -1699,30 +1699,27 @@ namespace Emby.Xtream.Plugin.Service
             }
             var removed = 0;
 
-            foreach (var strmFile in existingStrms)
+            foreach (var strmFile in existingStrms.Where(f => !validPaths.Contains(f)))
             {
-                if (!validPaths.Contains(strmFile))
+                try
                 {
-                    try
-                    {
-                        File.Delete(strmFile);
-                        removed++;
+                    File.Delete(strmFile);
+                    removed++;
 
-                        // Remove empty parent directories
-                        var dir = Path.GetDirectoryName(strmFile);
-                        while (!string.IsNullOrEmpty(dir) &&
-                               !string.Equals(dir, rootPath, StringComparison.OrdinalIgnoreCase) &&
-                               Directory.Exists(dir) &&
-                               Directory.GetFileSystemEntries(dir).Length == 0)
-                        {
-                            Directory.Delete(dir);
-                            dir = Path.GetDirectoryName(dir);
-                        }
-                    }
-                    catch (Exception ex)
+                    // Remove empty parent directories
+                    var dir = Path.GetDirectoryName(strmFile);
+                    while (!string.IsNullOrEmpty(dir) &&
+                           !string.Equals(dir, rootPath, StringComparison.OrdinalIgnoreCase) &&
+                           Directory.Exists(dir) &&
+                           Directory.GetFileSystemEntries(dir).Length == 0)
                     {
-                        _logger.Debug("Failed to cleanup orphan '{0}': {1}", strmFile, ex.Message);
+                        Directory.Delete(dir);
+                        dir = Path.GetDirectoryName(dir);
                     }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Debug("Failed to cleanup orphan '{0}': {1}", strmFile, ex.Message);
                 }
             }
 

@@ -875,9 +875,10 @@ namespace Emby.Xtream.Plugin.Api
             var dirs = new List<string>();
             try
             {
-                foreach (var dir in Directory.GetDirectories(path).OrderBy(d => d, StringComparer.OrdinalIgnoreCase))
+                foreach (var dir in Directory.GetDirectories(path)
+                    .OrderBy(d => d, StringComparer.OrdinalIgnoreCase)
+                    .Where(d => !System.IO.Path.GetFileName(d).StartsWith(".", StringComparison.Ordinal)))
                 {
-                    if (System.IO.Path.GetFileName(dir).StartsWith(".")) continue;
                     dirs.Add(dir);
                 }
             }
