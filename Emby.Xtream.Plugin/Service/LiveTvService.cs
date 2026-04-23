@@ -474,12 +474,9 @@ namespace Emby.Xtream.Plugin.Service
                             ? channel.EpgChannelId
                             : channel.StreamId.ToString(CultureInfo.InvariantCulture);
 
-                        foreach (var program in epgListings.Listings)
+                        foreach (var program in epgListings.Listings.Where(p => string.IsNullOrEmpty(p.ChannelId)))
                         {
-                            if (string.IsNullOrEmpty(program.ChannelId))
-                            {
-                                program.ChannelId = channelId;
-                            }
+                            program.ChannelId = channelId;
                         }
 
                         var nowUnix = now.ToUnixTimeSeconds();
