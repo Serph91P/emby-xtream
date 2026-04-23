@@ -362,7 +362,7 @@ namespace Emby.Xtream.Plugin.Api
 
                     sorted = seriesList
                         .Where(s => s.CategoryId.HasValue)
-                        .GroupBy(s => s.CategoryId.Value)
+                        .GroupBy(s => s.CategoryId.GetValueOrDefault())
                         .Select(g => new Category
                         {
                             CategoryId = g.Key,
@@ -809,6 +809,7 @@ namespace Emby.Xtream.Plugin.Api
                     var searchResults = resultProp.GetValue(task) as System.Collections.IEnumerable;
                     var count = 0;
                     MediaBrowser.Model.Providers.RemoteSearchResult firstResult = null;
+                    if (searchResults != null)
                     foreach (var item in searchResults)
                     {
                         if (count == 0) firstResult = item as MediaBrowser.Model.Providers.RemoteSearchResult;

@@ -93,13 +93,10 @@ namespace Emby.Xtream.Plugin.Client
             var channels = JsonSerializer.Deserialize<List<DispatcharrChannelWithStreams>>(json, JsonOptions);
             if (channels == null) return (uuidMap, statsMap, tvgIdMap, stationIdMap, allowedStreamIds, channelNumberMap);
 
-            foreach (var ch in channels)
+            foreach (var ch in channels.Where(ch =>
+                !string.IsNullOrEmpty(ch.Uuid) &&
+                (enabledChannelIds == null || enabledChannelIds.Contains(ch.Id))))
             {
-                if (string.IsNullOrEmpty(ch.Uuid)) continue;
-
-                // Profile filtering: skip channels not in the enabled set.
-                if (enabledChannelIds != null && !enabledChannelIds.Contains(ch.Id))
-                    continue;
 
                 // We need to key all maps by the stream_id that the plugin received from the
                 // Xtream API and stored as TunerChannelId.  There are two configurations:
@@ -116,9 +113,8 @@ namespace Emby.Xtream.Plugin.Client
                 // We don't know which config the user has, so write both keys.  When they
                 // differ, stream.StreamId covers Config A; ch.Id covers Config B.
                 // ContainsKey guards prevent a later entry from overwriting an earlier one.
-                foreach (var stream in ch.Streams)
+                foreach (var stream in ch.Streams.Where(s => s.StreamId.HasValue))
                 {
-                    if (!stream.StreamId.HasValue) continue;
                     var sid = stream.StreamId.Value;
 
                     if (!uuidMap.ContainsKey(sid))

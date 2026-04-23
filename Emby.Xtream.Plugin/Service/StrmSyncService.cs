@@ -341,7 +341,7 @@ namespace Emby.Xtream.Plugin.Service
                 _logger.Info("Starting movie STRM sync for {0} streams", allStreams.Count);
 
                 var writtenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                var semaphore = new SemaphoreSlim(config.SyncParallelism);
+                using var semaphore = new SemaphoreSlim(config.SyncParallelism);
 
                 // Shared Dispatcharr VOD client - only queried per-movie, after smart-skip
                 Emby.Xtream.Plugin.Client.DispatcharrClient dispatcharrVodClient = null;
@@ -684,7 +684,7 @@ namespace Emby.Xtream.Plugin.Service
                 }
 
                 var writtenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                var semaphore = new SemaphoreSlim(config.SyncParallelism);
+                using var semaphore = new SemaphoreSlim(config.SyncParallelism);
 
                 // Episode hash cache: load stored hashes so we can skip file I/O for unchanged series
                 var storedHashes = DeserializeEpisodeHashes(config.SeriesEpisodeHashesJson);
@@ -796,7 +796,7 @@ namespace Emby.Xtream.Plugin.Service
                             var tmdbIdMatch = Regex.Match(folderName, @"\[tmdbid=(\d+)\]");
                             var showTvdbId = tvdbIdMatch.Success ? tvdbIdMatch.Groups[1].Value : null;
                             var showTmdbId = tmdbIdMatch.Success ? tmdbIdMatch.Groups[1].Value : null;
-                            if (showTmdbId == null && detail?.Info?.TmdbId != null)
+                            if (showTmdbId == null && detail.Info?.TmdbId != null)
                                 showTmdbId = detail.Info.TmdbId.ToString();
                             Directory.CreateDirectory(seriesDir);
                             try { NfoWriter.WriteShowNfo(showNfoPath, seriesName, showTvdbId, showTmdbId); }
@@ -1065,7 +1065,7 @@ namespace Emby.Xtream.Plugin.Service
 
             try
             {
-                var semaphore = new SemaphoreSlim(config.SyncParallelism);
+                using var semaphore = new SemaphoreSlim(config.SyncParallelism);
                 var categoryNames = new Dictionary<int, string>();
                 var folderMappings = FolderMappingParser.Parse(config.MovieFolderMappings);
                 var writtenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -1460,7 +1460,7 @@ namespace Emby.Xtream.Plugin.Service
             var seriesList = await FetchSeriesListAsync(null, config, cancellationToken).ConfigureAwait(false);
             return seriesList
                 .Where(s => s.CategoryId.HasValue)
-                .GroupBy(s => s.CategoryId.Value)
+                .GroupBy(s => s.CategoryId.GetValueOrDefault())
                 .Select(g => new Category
                 {
                     CategoryId = g.Key,
@@ -1490,7 +1490,7 @@ namespace Emby.Xtream.Plugin.Service
             }
             else
             {
-                var semaphore = new SemaphoreSlim(config.SyncParallelism);
+                using var semaphore = new SemaphoreSlim(config.SyncParallelism);
                 var tasks = categoryIds.Select(async catId =>
                 {
                     await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -1558,7 +1558,7 @@ namespace Emby.Xtream.Plugin.Service
             }
             else
             {
-                var semaphore = new SemaphoreSlim(config.SyncParallelism);
+                using var semaphore = new SemaphoreSlim(config.SyncParallelism);
                 var tasks = categoryIds.Select(async catId =>
                 {
                     await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);

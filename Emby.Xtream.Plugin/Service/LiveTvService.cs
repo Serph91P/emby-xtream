@@ -203,7 +203,7 @@ namespace Emby.Xtream.Plugin.Service
             if (config.SelectedLiveCategoryIds != null && config.SelectedLiveCategoryIds.Length > 0)
             {
                 allChannels = new List<LiveStreamInfo>();
-                var semaphore = new SemaphoreSlim(5);
+                using var semaphore = new SemaphoreSlim(5);
                 var tasks = config.SelectedLiveCategoryIds.Select(async categoryId =>
                 {
                     await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -306,6 +306,7 @@ namespace Emby.Xtream.Plugin.Service
             var sb = new StringBuilder();
             sb.AppendLine("#EXTM3U");
 
+            var extinf = new StringBuilder();
             foreach (var channel in channels.OrderBy(c => c.Num))
             {
                 var cleanName = ChannelNameCleaner.CleanChannelName(
@@ -326,7 +327,7 @@ namespace Emby.Xtream.Plugin.Service
                         ? channel.EpgChannelId
                         : channel.StreamId.ToString(CultureInfo.InvariantCulture);
 
-                var extinf = new StringBuilder();
+                extinf.Clear();
                 extinf.Append("#EXTINF:-1");
                 extinf.AppendFormat(CultureInfo.InvariantCulture, " tvg-id=\"{0}\"", EscapeAttribute(epgId));
                 extinf.AppendFormat(CultureInfo.InvariantCulture, " tvg-name=\"{0}\"", EscapeAttribute(cleanName));
@@ -352,7 +353,7 @@ namespace Emby.Xtream.Plugin.Service
 
                 extinf.AppendFormat(CultureInfo.InvariantCulture, ",{0}", cleanName);
 
-                sb.AppendLine(extinf.ToString());
+                sb.Append(extinf).AppendLine();
                 sb.AppendLine(BuildStreamUrl(config, channel));
             }
 
@@ -437,9 +438,7 @@ namespace Emby.Xtream.Plugin.Service
             CancellationToken cancellationToken)
         {
             var allPrograms = new List<EpgProgram>();
-            var semaphore = new SemaphoreSlim(5);
-
-            var now = DateTimeOffset.UtcNow;
+            using var semaphore = new SemaphoreSlim(5);
             var endTime = now.AddDays(config.EpgDaysToFetch);
 
             var tasks = channels.Select(async channel =>
