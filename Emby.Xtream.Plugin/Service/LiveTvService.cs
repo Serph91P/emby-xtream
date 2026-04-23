@@ -203,7 +203,7 @@ namespace Emby.Xtream.Plugin.Service
             if (config.SelectedLiveCategoryIds != null && config.SelectedLiveCategoryIds.Length > 0)
             {
                 allChannels = new List<LiveStreamInfo>();
-                using var semaphore = new SemaphoreSlim(5);
+                var semaphore = new SemaphoreSlim(5);
                 var tasks = config.SelectedLiveCategoryIds.Select(async categoryId =>
                 {
                     await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -218,6 +218,7 @@ namespace Emby.Xtream.Plugin.Service
                 });
 
                 var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+                semaphore.Dispose();
                 foreach (var result in results)
                 {
                     allChannels.AddRange(result);
@@ -438,7 +439,9 @@ namespace Emby.Xtream.Plugin.Service
             CancellationToken cancellationToken)
         {
             var allPrograms = new List<EpgProgram>();
-            using var semaphore = new SemaphoreSlim(5);
+            var semaphore = new SemaphoreSlim(5);
+
+            var now = DateTimeOffset.UtcNow;
             var endTime = now.AddDays(config.EpgDaysToFetch);
 
             var tasks = channels.Select(async channel =>
@@ -489,6 +492,7 @@ namespace Emby.Xtream.Plugin.Service
             });
 
             var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+            semaphore.Dispose();
             foreach (var result in results)
             {
                 allPrograms.AddRange(result);
