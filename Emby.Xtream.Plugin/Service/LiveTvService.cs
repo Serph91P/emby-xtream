@@ -488,7 +488,26 @@ namespace Emby.Xtream.Plugin.Service
                             .Where(p => p.StopTimestamp > nowUnix && p.StartTimestamp < endUnix)
                             .ToList();
                     }
-                    catch (Exception ex)
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (HttpRequestException ex)
+                    {
+                        _logger.Debug("Failed to fetch EPG for channel {0}: {1}", channel.StreamId, ex.Message);
+                        return new List<EpgProgram>();
+                    }
+                    catch (TaskCanceledException ex)
+                    {
+                        _logger.Debug("Failed to fetch EPG for channel {0}: {1}", channel.StreamId, ex.Message);
+                        return new List<EpgProgram>();
+                    }
+                    catch (STJ.JsonException ex)
+                    {
+                        _logger.Debug("Failed to fetch EPG for channel {0}: {1}", channel.StreamId, ex.Message);
+                        return new List<EpgProgram>();
+                    }
+                    catch (InvalidOperationException ex)
                     {
                         _logger.Debug("Failed to fetch EPG for channel {0}: {1}", channel.StreamId, ex.Message);
                         return new List<EpgProgram>();

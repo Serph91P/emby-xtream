@@ -1101,7 +1101,29 @@ namespace Emby.Xtream.Plugin.Service
                             lock (succeededLock) { succeeded.Add(item); }
                             Interlocked.Increment(ref _movieProgress.Completed);
                         }
-                        catch (Exception ex)
+                        catch (OperationCanceledException)
+                        {
+                            throw;
+                        }
+                        catch (HttpRequestException ex)
+                        {
+                            _logger.Error("Retry still failed for '{0}': {1}", item.Name, ex.Message);
+                            Interlocked.Increment(ref _movieProgress.Failed);
+                            Interlocked.Increment(ref _movieProgress.Completed);
+                        }
+                        catch (IOException ex)
+                        {
+                            _logger.Error("Retry still failed for '{0}': {1}", item.Name, ex.Message);
+                            Interlocked.Increment(ref _movieProgress.Failed);
+                            Interlocked.Increment(ref _movieProgress.Completed);
+                        }
+                        catch (UnauthorizedAccessException ex)
+                        {
+                            _logger.Error("Retry still failed for '{0}': {1}", item.Name, ex.Message);
+                            Interlocked.Increment(ref _movieProgress.Failed);
+                            Interlocked.Increment(ref _movieProgress.Completed);
+                        }
+                        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
                         {
                             _logger.Error("Retry still failed for '{0}': {1}", item.Name, ex.Message);
                             Interlocked.Increment(ref _movieProgress.Failed);
