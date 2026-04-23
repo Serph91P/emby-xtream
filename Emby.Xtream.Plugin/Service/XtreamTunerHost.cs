@@ -91,8 +91,6 @@ namespace Emby.Xtream.Plugin.Service
             DateTimeOffset startDateUtc, DateTimeOffset endDateUtc,
             CancellationToken cancellationToken)
         {
-            var config = Plugin.Instance.Configuration;
-
             int streamId;
             if (_tunerChannelIdToStreamId.TryGetValue(tunerChannelId, out streamId))
             {
@@ -551,12 +549,12 @@ namespace Emby.Xtream.Plugin.Service
             var sw = System.Diagnostics.Stopwatch.StartNew();
 
             await EnsureStatsLoadedAsync(cancellationToken).ConfigureAwait(false);
-            Logger.Info("[stream-timing] ch={0} EnsureStats={1}ms", tunerChannel?.Name, sw.ElapsedMilliseconds);
+            Logger.Info("[stream-timing] ch={0} EnsureStats={1}ms", tunerChannel.Name, sw.ElapsedMilliseconds);
             sw.Restart();
 
             var config = Plugin.Instance.Configuration;
             var (streamUrl, isDispatcharr) = BuildStreamUrl(config, streamId);
-            Logger.Info("[stream-timing] ch={0} BuildUrl={1}ms isDispatcharr={2}", tunerChannel?.Name, sw.ElapsedMilliseconds, isDispatcharr);
+            Logger.Info("[stream-timing] ch={0} BuildUrl={1}ms isDispatcharr={2}", tunerChannel.Name, sw.ElapsedMilliseconds, isDispatcharr);
             sw.Restart();
 
             if (streamUrl == null)
@@ -567,7 +565,7 @@ namespace Emby.Xtream.Plugin.Service
             _streamStats.TryGetValue(streamId, out var stats);
 
             var mediaSource = CreateMediaSourceInfo(streamId, streamUrl, stats, isDispatcharr, config.ForceAudioTranscode, config.HttpUserAgent);
-            Logger.Info("[stream-timing] ch={0} CreateMediaSource={1}ms hasStats={2}", tunerChannel?.Name, sw.ElapsedMilliseconds, stats != null);
+            Logger.Info("[stream-timing] ch={0} CreateMediaSource={1}ms hasStats={2}", tunerChannel.Name, sw.ElapsedMilliseconds, stats != null);
 
             return new List<MediaSourceInfo> { mediaSource };
         }
@@ -586,7 +584,7 @@ namespace Emby.Xtream.Plugin.Service
             var sw = System.Diagnostics.Stopwatch.StartNew();
 
             await EnsureStatsLoadedAsync(cancellationToken).ConfigureAwait(false);
-            Logger.Info("[stream-timing] ch={0} EnsureStats={1}ms", tunerChannel?.Name, sw.ElapsedMilliseconds);
+            Logger.Info("[stream-timing] ch={0} EnsureStats={1}ms", tunerChannel.Name, sw.ElapsedMilliseconds);
             sw.Restart();
 
             var config = Plugin.Instance.Configuration;
@@ -597,17 +595,17 @@ namespace Emby.Xtream.Plugin.Service
                     string.Format("Channel {0}: Dispatcharr proxy unavailable and fallback disabled", streamId));
             }
             _streamStats.TryGetValue(streamId, out var stats);
-            Logger.Info("[stream-timing] ch={0} BuildUrl={1}ms isDispatcharr={2}", tunerChannel?.Name, sw.ElapsedMilliseconds, isDispatcharr);
+            Logger.Info("[stream-timing] ch={0} BuildUrl={1}ms isDispatcharr={2}", tunerChannel.Name, sw.ElapsedMilliseconds, isDispatcharr);
             sw.Restart();
 
             var mediaSource = CreateMediaSourceInfo(streamId, streamUrl, stats, isDispatcharr, config.ForceAudioTranscode, config.HttpUserAgent);
-            Logger.Info("[stream-timing] ch={0} CreateMediaSource={1}ms hasStats={2}", tunerChannel?.Name, sw.ElapsedMilliseconds, stats != null);
+            Logger.Info("[stream-timing] ch={0} CreateMediaSource={1}ms hasStats={2}", tunerChannel.Name, sw.ElapsedMilliseconds, stats != null);
 
             var httpClient = Plugin.CreateHttpClient();
             ILiveStream liveStream = new XtreamLiveStream(mediaSource, tuner.Id, httpClient, Logger);
 
             Logger.Info("Opening live stream for channel {0} (stream {1})",
-                tunerChannel?.Name ?? tunerChannel?.Id, streamId);
+                tunerChannel.Name ?? tunerChannel.Id, streamId);
 
             return liveStream;
         }
@@ -915,7 +913,7 @@ namespace Emby.Xtream.Plugin.Service
 
                         channelName = channelName ?? channelNumber;
 
-                        imageInfosProp.SetValue(item, Array.CreateInstance(imageInfos.GetType().GetElementType(), 0));
+                        imageInfosProp?.SetValue(item, Array.CreateInstance(imageInfos.GetType().GetElementType(), 0));
 
                         var updateMethods = typeof(ILibraryManager).GetMethods()
                             .Where(m => m.Name == "UpdateItem" && m.GetParameters().Length == 3)
@@ -1213,7 +1211,7 @@ namespace Emby.Xtream.Plugin.Service
             // then hits the teardown and fails, causing a rapid retry storm.
             bool suppressProbing = disableProbing || hasStats;
 
-            var audioCodecLower = hasStats && !string.IsNullOrEmpty(stats.AudioCodec)
+            var audioCodecLower = hasStats && !string.IsNullOrEmpty(stats?.AudioCodec)
                 ? stats.AudioCodec.ToLowerInvariant() : null;
 
             // When ForceAudioTranscode is enabled, disable direct-stream so Emby transcodes

@@ -204,23 +204,30 @@ namespace Emby.Xtream.Plugin.Service
             {
                 allChannels = new List<LiveStreamInfo>();
                 var semaphore = new SemaphoreSlim(5);
-                var tasks = config.SelectedLiveCategoryIds.Select(async categoryId =>
+                try
                 {
-                    await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                    try
+                    var tasks = config.SelectedLiveCategoryIds.Select(async categoryId =>
                     {
-                        return await FetchChannelsByCategoryAsync(categoryId, cancellationToken).ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        semaphore.Release();
-                    }
-                });
+                        await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                        try
+                        {
+                            return await FetchChannelsByCategoryAsync(categoryId, cancellationToken).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            semaphore.Release();
+                        }
+                    });
 
-                var results = await Task.WhenAll(tasks).ConfigureAwait(false);
-                foreach (var result in results)
+                    var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+                    foreach (var result in results)
+                    {
+                        allChannels.AddRange(result);
+                    }
+                }
+                finally
                 {
-                    allChannels.AddRange(result);
+                    semaphore.Dispose();
                 }
 
                 // Remove duplicates by StreamId
@@ -306,6 +313,7 @@ namespace Emby.Xtream.Plugin.Service
             var sb = new StringBuilder();
             sb.AppendLine("#EXTM3U");
 
+            var extinf = new StringBuilder();
             foreach (var channel in channels.OrderBy(c => c.Num))
             {
                 var cleanName = ChannelNameCleaner.CleanChannelName(
@@ -326,7 +334,7 @@ namespace Emby.Xtream.Plugin.Service
                         ? channel.EpgChannelId
                         : channel.StreamId.ToString(CultureInfo.InvariantCulture);
 
-                var extinf = new StringBuilder();
+                extinf.Clear();
                 extinf.Append("#EXTINF:-1");
                 extinf.AppendFormat(CultureInfo.InvariantCulture, " tvg-id=\"{0}\"", EscapeAttribute(epgId));
                 extinf.AppendFormat(CultureInfo.InvariantCulture, " tvg-name=\"{0}\"", EscapeAttribute(cleanName));
@@ -352,7 +360,7 @@ namespace Emby.Xtream.Plugin.Service
 
                 extinf.AppendFormat(CultureInfo.InvariantCulture, ",{0}", cleanName);
 
-                sb.AppendLine(extinf.ToString());
+                sb.Append(extinf).AppendLine();
                 sb.AppendLine(BuildStreamUrl(config, channel));
             }
 
@@ -442,57 +450,80 @@ namespace Emby.Xtream.Plugin.Service
             var now = DateTimeOffset.UtcNow;
             var endTime = now.AddDays(config.EpgDaysToFetch);
 
-            var tasks = channels.Select(async channel =>
+            try
             {
-                await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                try
+                var tasks = channels.Select(async channel =>
                 {
-                    var epgListings = await FetchEpgForChannelAsync(channel.StreamId, cancellationToken).ConfigureAwait(false);
-
-                    if (epgListings == null || epgListings.Listings == null)
+                    await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    try
                     {
-                        return new List<EpgProgram>();
-                    }
+                        var epgListings = await FetchEpgForChannelAsync(channel.StreamId, cancellationToken).ConfigureAwait(false);
 
-                    // Warm the per-channel cache so GetProgramsInternal finds hits without re-fetching.
-                    lock (_perChannelEpgLock)
-                    {
-                        _perChannelEpgCache[channel.StreamId] = (epgListings.Listings, DateTime.UtcNow);
-                    }
+                        if (epgListings == null || epgListings.Listings == null)
+                        {
+                            return new List<EpgProgram>();
+                        }
 
-                    var channelId = !string.IsNullOrEmpty(channel.EpgChannelId)
-                        ? channel.EpgChannelId
-                        : channel.StreamId.ToString(CultureInfo.InvariantCulture);
+                        // Warm the per-channel cache so GetProgramsInternal finds hits without re-fetching.
+                        lock (_perChannelEpgLock)
+                        {
+                            _perChannelEpgCache[channel.StreamId] = (epgListings.Listings, DateTime.UtcNow);
+                        }
 
-                    foreach (var program in epgListings.Listings)
-                    {
-                        if (string.IsNullOrEmpty(program.ChannelId))
+                        var channelId = !string.IsNullOrEmpty(channel.EpgChannelId)
+                            ? channel.EpgChannelId
+                            : channel.StreamId.ToString(CultureInfo.InvariantCulture);
+
+                        foreach (var program in epgListings.Listings.Where(p => string.IsNullOrEmpty(p.ChannelId)))
                         {
                             program.ChannelId = channelId;
                         }
+
+                        var nowUnix = now.ToUnixTimeSeconds();
+                        var endUnix = endTime.ToUnixTimeSeconds();
+                        return epgListings.Listings
+                            .Where(p => p.StopTimestamp > nowUnix && p.StartTimestamp < endUnix)
+                            .ToList();
                     }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (HttpRequestException ex)
+                    {
+                        _logger.Debug("Failed to fetch EPG for channel {0}: {1}", channel.StreamId, ex.Message);
+                        return new List<EpgProgram>();
+                    }
+                    catch (TaskCanceledException ex)
+                    {
+                        _logger.Debug("Failed to fetch EPG for channel {0}: {1}", channel.StreamId, ex.Message);
+                        return new List<EpgProgram>();
+                    }
+                    catch (STJ.JsonException ex)
+                    {
+                        _logger.Debug("Failed to fetch EPG for channel {0}: {1}", channel.StreamId, ex.Message);
+                        return new List<EpgProgram>();
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        _logger.Debug("Failed to fetch EPG for channel {0}: {1}", channel.StreamId, ex.Message);
+                        return new List<EpgProgram>();
+                    }
+                    finally
+                    {
+                        semaphore.Release();
+                    }
+                });
 
-                    var nowUnix = now.ToUnixTimeSeconds();
-                    var endUnix = endTime.ToUnixTimeSeconds();
-                    return epgListings.Listings
-                        .Where(p => p.StopTimestamp > nowUnix && p.StartTimestamp < endUnix)
-                        .ToList();
-                }
-                catch (Exception ex)
+                var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+                foreach (var result in results)
                 {
-                    _logger.Debug("Failed to fetch EPG for channel {0}: {1}", channel.StreamId, ex.Message);
-                    return new List<EpgProgram>();
+                    allPrograms.AddRange(result);
                 }
-                finally
-                {
-                    semaphore.Release();
-                }
-            });
-
-            var results = await Task.WhenAll(tasks).ConfigureAwait(false);
-            foreach (var result in results)
+            }
+            finally
             {
-                allPrograms.AddRange(result);
+                semaphore.Dispose();
             }
 
             _logger.Info("Fetched {0} EPG programs for {1} channels", allPrograms.Count, channels.Count);

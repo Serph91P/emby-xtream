@@ -65,16 +65,21 @@ namespace Emby.Xtream.Plugin.Service
             // Redact IP addresses, but preserve version numbers (e.g. Version=1.2.0.0)
             // Replace version patterns with placeholders first, then redact IPs, then restore
             var versionMatches = VersionContextRegex.Matches(s);
+            var sbVer = new System.Text.StringBuilder(s);
             for (int i = versionMatches.Count - 1; i >= 0; i--)
             {
                 var vm = versionMatches[i];
-                s = s.Substring(0, vm.Index) + "\x00VER" + i + "\x00" + s.Substring(vm.Index + vm.Length);
+                var placeholder = "\x00VER" + i + "\x00";
+                sbVer.Remove(vm.Index, vm.Length);
+                sbVer.Insert(vm.Index, placeholder);
             }
-            s = IpRegex.Replace(s, "<ip-redacted>");
+            s = IpRegex.Replace(sbVer.ToString(), "<ip-redacted>");
+            var sbRestore = new System.Text.StringBuilder(s);
             for (int i = 0; i < versionMatches.Count; i++)
             {
-                s = s.Replace("\x00VER" + i + "\x00", versionMatches[i].Value);
+                sbRestore.Replace("\x00VER" + i + "\x00", versionMatches[i].Value);
             }
+            s = sbRestore.ToString();
 
             // Redact Xtream credentials in URLs: /live/user/pass/
             s = XtreamCredRegex.Replace(s, "/live/<user>/<pass>/");

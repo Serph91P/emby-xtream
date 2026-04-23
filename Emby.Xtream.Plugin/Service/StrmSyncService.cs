@@ -343,19 +343,21 @@ namespace Emby.Xtream.Plugin.Service
                 var writtenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 var semaphore = new SemaphoreSlim(config.SyncParallelism);
 
-                // Shared Dispatcharr VOD client - only queried per-movie, after smart-skip
-                Emby.Xtream.Plugin.Client.DispatcharrClient dispatcharrVodClient = null;
-                if (config.EnableDispatcharr && !string.IsNullOrEmpty(config.DispatcharrUrl))
+                try
                 {
-                    dispatcharrVodClient = new Emby.Xtream.Plugin.Client.DispatcharrClient(_logger);
-                    dispatcharrVodClient.Configure(config.DispatcharrUser, config.DispatcharrPass);
-                }
-
-                var tasks = allStreams.Select(async movie =>
-                {
-                    await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                    try
+                    // Shared Dispatcharr VOD client - only queried per-movie, after smart-skip
+                    Emby.Xtream.Plugin.Client.DispatcharrClient dispatcharrVodClient = null;
+                    if (config.EnableDispatcharr && !string.IsNullOrEmpty(config.DispatcharrUrl))
                     {
+                        dispatcharrVodClient = new Emby.Xtream.Plugin.Client.DispatcharrClient(_logger);
+                        dispatcharrVodClient.Configure(config.DispatcharrUser, config.DispatcharrPass);
+                    }
+
+                    var tasks = allStreams.Select(async movie =>
+                    {
+                        await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                        try
+                        {
                         var cleanedName = config.EnableContentNameCleaning
                             ? ContentNameCleaner.CleanContentName(movie.Name, config.ContentRemoveTerms)
                             : movie.Name;
@@ -546,14 +548,19 @@ namespace Emby.Xtream.Plugin.Service
                         Interlocked.Increment(ref _movieProgress.Failed);
                         Interlocked.Increment(ref _movieProgress.Completed);
                         ReportTaskProgress(_movieProgress, taskProgress);
-                    }
-                    finally
-                    {
-                        semaphore.Release();
-                    }
-                });
+                        }
+                        finally
+                        {
+                            semaphore.Release();
+                        }
+                    });
 
-                await Task.WhenAll(tasks).ConfigureAwait(false);
+                    await Task.WhenAll(tasks).ConfigureAwait(false);
+                }
+                finally
+                {
+                    semaphore.Dispose();
+                }
 
                 // Cleanup orphans
                 if (config.CleanupOrphans)
@@ -691,11 +698,13 @@ namespace Emby.Xtream.Plugin.Service
                 var updatedHashes = new ConcurrentDictionary<string, string>();
                 int hashSkippedCount = 0;
 
-                var tasks = allSeries.Select(async series =>
+                try
                 {
-                    await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                    try
+                    var tasks = allSeries.Select(async series =>
                     {
+                        await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                        try
+                        {
                         var cleanedName = config.EnableContentNameCleaning
                             ? ContentNameCleaner.CleanContentName(series.Name, config.ContentRemoveTerms)
                             : series.Name;
@@ -796,7 +805,7 @@ namespace Emby.Xtream.Plugin.Service
                             var tmdbIdMatch = Regex.Match(folderName, @"\[tmdbid=(\d+)\]");
                             var showTvdbId = tvdbIdMatch.Success ? tvdbIdMatch.Groups[1].Value : null;
                             var showTmdbId = tmdbIdMatch.Success ? tmdbIdMatch.Groups[1].Value : null;
-                            if (showTmdbId == null && detail?.Info?.TmdbId != null)
+                            if (showTmdbId == null && detail.Info?.TmdbId != null)
                                 showTmdbId = detail.Info.TmdbId.ToString();
                             Directory.CreateDirectory(seriesDir);
                             try { NfoWriter.WriteShowNfo(showNfoPath, seriesName, showTvdbId, showTmdbId); }
@@ -963,14 +972,19 @@ namespace Emby.Xtream.Plugin.Service
                         Interlocked.Increment(ref _seriesProgress.Failed);
                         Interlocked.Increment(ref _seriesProgress.Completed);
                         ReportTaskProgress(_seriesProgress, taskProgress);
-                    }
-                    finally
-                    {
-                        semaphore.Release();
-                    }
-                });
+                        }
+                        finally
+                        {
+                            semaphore.Release();
+                        }
+                    });
 
-                await Task.WhenAll(tasks).ConfigureAwait(false);
+                    await Task.WhenAll(tasks).ConfigureAwait(false);
+                }
+                finally
+                {
+                    semaphore.Dispose();
+                }
 
                 // Cleanup orphans
                 if (config.CleanupOrphans)
@@ -1072,32 +1086,61 @@ namespace Emby.Xtream.Plugin.Service
                 var succeeded = new List<FailedSyncItem>();
                 var succeededLock = new object();
 
-                var tasks = items.Select(async item =>
+                try
                 {
-                    await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                    try
+                    var tasks = items.Select(async item =>
                     {
-                        if (item.ItemType == "Movie")
-                            await RetryMovieItemAsync(item, config, categoryNames, folderMappings, writtenPaths, cancellationToken).ConfigureAwait(false);
-                        else if (item.ItemType == "Series")
-                            await RetrySeriesItemAsync(item, config, cancellationToken).ConfigureAwait(false);
+                        await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                        try
+                        {
+                            if (item.ItemType == "Movie")
+                                await RetryMovieItemAsync(item, config, categoryNames, folderMappings, writtenPaths, cancellationToken).ConfigureAwait(false);
+                            else if (item.ItemType == "Series")
+                                await RetrySeriesItemAsync(item, config, cancellationToken).ConfigureAwait(false);
 
-                        lock (succeededLock) { succeeded.Add(item); }
-                        Interlocked.Increment(ref _movieProgress.Completed);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Error("Retry still failed for '{0}': {1}", item.Name, ex.Message);
-                        Interlocked.Increment(ref _movieProgress.Failed);
-                        Interlocked.Increment(ref _movieProgress.Completed);
-                    }
-                    finally
-                    {
-                        semaphore.Release();
-                    }
-                });
+                            lock (succeededLock) { succeeded.Add(item); }
+                            Interlocked.Increment(ref _movieProgress.Completed);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            throw;
+                        }
+                        catch (HttpRequestException ex)
+                        {
+                            _logger.Error("Retry still failed for '{0}': {1}", item.Name, ex.Message);
+                            Interlocked.Increment(ref _movieProgress.Failed);
+                            Interlocked.Increment(ref _movieProgress.Completed);
+                        }
+                        catch (IOException ex)
+                        {
+                            _logger.Error("Retry still failed for '{0}': {1}", item.Name, ex.Message);
+                            Interlocked.Increment(ref _movieProgress.Failed);
+                            Interlocked.Increment(ref _movieProgress.Completed);
+                        }
+                        catch (UnauthorizedAccessException ex)
+                        {
+                            _logger.Error("Retry still failed for '{0}': {1}", item.Name, ex.Message);
+                            Interlocked.Increment(ref _movieProgress.Failed);
+                            Interlocked.Increment(ref _movieProgress.Completed);
+                        }
+                        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+                        {
+                            _logger.Error("Retry still failed for '{0}': {1}", item.Name, ex.Message);
+                            Interlocked.Increment(ref _movieProgress.Failed);
+                            Interlocked.Increment(ref _movieProgress.Completed);
+                        }
+                        finally
+                        {
+                            semaphore.Release();
+                        }
+                    });
 
-                await Task.WhenAll(tasks).ConfigureAwait(false);
+                    await Task.WhenAll(tasks).ConfigureAwait(false);
+                }
+                finally
+                {
+                    semaphore.Dispose();
+                }
 
                 lock (_failedItemsLock)
                 {
@@ -1460,7 +1503,7 @@ namespace Emby.Xtream.Plugin.Service
             var seriesList = await FetchSeriesListAsync(null, config, cancellationToken).ConfigureAwait(false);
             return seriesList
                 .Where(s => s.CategoryId.HasValue)
-                .GroupBy(s => s.CategoryId.Value)
+                .GroupBy(s => s.CategoryId.GetValueOrDefault())
                 .Select(g => new Category
                 {
                     CategoryId = g.Key,
@@ -1491,11 +1534,14 @@ namespace Emby.Xtream.Plugin.Service
             else
             {
                 var semaphore = new SemaphoreSlim(config.SyncParallelism);
-                var tasks = categoryIds.Select(async catId =>
+
+                try
                 {
-                    await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                    try
+                    var tasks = categoryIds.Select(async catId =>
                     {
+                        await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                        try
+                        {
                         var url = string.Format(
                             CultureInfo.InvariantCulture,
                             "{0}/player_api.php?username={1}&password={2}&action=get_vod_streams&category_id={3}",
@@ -1520,17 +1566,22 @@ namespace Emby.Xtream.Plugin.Service
                     {
                         _logger.Warn("Failed to fetch VOD streams for category {0}: {1}", catId, ex.Message);
                         return new List<VodStreamInfo>();
-                    }
-                    finally
-                    {
-                        semaphore.Release();
-                    }
-                });
+                        }
+                        finally
+                        {
+                            semaphore.Release();
+                        }
+                    });
 
-                var results = await Task.WhenAll(tasks).ConfigureAwait(false);
-                foreach (var result in results)
+                    var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+                    foreach (var result in results)
+                    {
+                        allStreams.AddRange(result);
+                    }
+                }
+                finally
                 {
-                    allStreams.AddRange(result);
+                    semaphore.Dispose();
                 }
 
                 // Deduplicate by StreamId (first occurrence wins, keeping its assigned category)
@@ -1559,11 +1610,14 @@ namespace Emby.Xtream.Plugin.Service
             else
             {
                 var semaphore = new SemaphoreSlim(config.SyncParallelism);
-                var tasks = categoryIds.Select(async catId =>
+
+                try
                 {
-                    await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                    try
+                    var tasks = categoryIds.Select(async catId =>
                     {
+                        await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                        try
+                        {
                         var url = string.Format(
                             CultureInfo.InvariantCulture,
                             "{0}/player_api.php?username={1}&password={2}&action=get_series&category_id={3}",
@@ -1586,17 +1640,22 @@ namespace Emby.Xtream.Plugin.Service
                     {
                         _logger.Warn("Failed to fetch series for category {0}: {1}", catId, ex.Message);
                         return new List<SeriesInfo>();
-                    }
-                    finally
-                    {
-                        semaphore.Release();
-                    }
-                });
+                        }
+                        finally
+                        {
+                            semaphore.Release();
+                        }
+                    });
 
-                var results = await Task.WhenAll(tasks).ConfigureAwait(false);
-                foreach (var result in results)
+                    var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+                    foreach (var result in results)
+                    {
+                        allSeries.AddRange(result);
+                    }
+                }
+                finally
                 {
-                    allSeries.AddRange(result);
+                    semaphore.Dispose();
                 }
 
                 allSeries = allSeries.GroupBy(s => s.SeriesId).Select(g => g.First()).ToList();
