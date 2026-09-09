@@ -117,7 +117,7 @@ namespace Emby.RuntimeCompatibility
             var index = Array.FindIndex(map.InterfaceMethods, method => method.Name == name);
             if (index >= 0)
             {
-                map.TargetMethods[index].Invoke(instance, new object[] { "runtime-abi" });
+                map.InterfaceMethods[index].Invoke(instance, new object[] { "runtime-abi" });
                 return;
             }
 

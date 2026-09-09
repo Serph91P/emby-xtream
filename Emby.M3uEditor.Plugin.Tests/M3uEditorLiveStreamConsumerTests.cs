@@ -67,28 +67,30 @@ namespace Emby.M3uEditor.Plugin.Tests
         {
             GetConsumerMethod("AddConsumer");
             var handler = new TrackingHttpHandler();
-            var stream = CreateLiveStream(handler);
-            var output = new MemoryStream();
             var previousPlugin = SetTestPluginInstance();
             try
             {
-                await stream.Open(CancellationToken.None);
-                Assert.Equal(0, handler.RequestCount);
+                using (var stream = CreateLiveStream(handler))
+                using (var output = new MemoryStream())
+                {
+                    await stream.Open(CancellationToken.None);
+                    Assert.Equal(0, handler.RequestCount);
 
-                await stream.CopyToAsync(output, null, null, CancellationToken.None);
-                Assert.Equal(1, handler.RequestCount);
-                Assert.NotNull(handler.ResponseStream);
-                Assert.Equal(0, handler.ResponseStream.DisposeCount);
+                    await stream.CopyToAsync(output, null, null, CancellationToken.None);
+                    Assert.Equal(1, handler.RequestCount);
+                    Assert.NotNull(handler.Response);
+                    Assert.Equal(0, handler.Response.DisposeCount);
+                    Assert.Equal(0, handler.ResponseStream.DisposeCount);
 
-                await stream.Close();
-                Assert.True(handler.ResponseStream.DisposeCount > 0);
-                Assert.Equal(1, handler.DisposeCount);
+                    await stream.Close();
+                    Assert.Equal(1, handler.Response.DisposeCount);
+                    Assert.Equal(1, handler.ResponseStream.DisposeCount);
+                    Assert.Equal(1, handler.DisposeCount);
+                }
             }
             finally
             {
                 SetPluginInstance(previousPlugin);
-                output.Dispose();
-                stream.Dispose();
             }
         }
 
@@ -150,38 +152,69 @@ namespace Emby.M3uEditor.Plugin.Tests
 
         private sealed class TrackingHttpHandler : HttpMessageHandler
         {
+            private TrackingHttpResponse _response;
+
             public int RequestCount { get; private set; }
             public int DisposeCount { get; private set; }
+            public TrackingHttpResponse Response => _response;
             public TrackingStream ResponseStream { get; private set; }
 
             protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
             {
                 RequestCount++;
                 ResponseStream = new TrackingStream();
-                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                _response = new TrackingHttpResponse(HttpStatusCode.OK)
                 {
                     Content = new StreamContent(ResponseStream),
-                });
+                };
+                return Task.FromResult<HttpResponseMessage>(_response);
             }
 
             protected override void Dispose(bool disposing)
             {
                 if (disposing)
+                {
                     DisposeCount++;
+                    _response?.Dispose();
+                }
+                base.Dispose(disposing);
+            }
+        }
+
+        private sealed class TrackingHttpResponse : HttpResponseMessage
+        {
+            private bool _disposed;
+
+            public TrackingHttpResponse(HttpStatusCode statusCode) : base(statusCode) { }
+
+            public int DisposeCount { get; private set; }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing && !_disposed)
+                {
+                    DisposeCount++;
+                    _disposed = true;
+                }
                 base.Dispose(disposing);
             }
         }
 
         private sealed class TrackingStream : MemoryStream
         {
+            private bool _disposed;
+
             public TrackingStream() : base(new byte[] { 1, 2, 3 }) { }
 
             public int DisposeCount { get; private set; }
 
             protected override void Dispose(bool disposing)
             {
-                if (disposing)
+                if (disposing && !_disposed)
+                {
                     DisposeCount++;
+                    _disposed = true;
+                }
                 base.Dispose(disposing);
             }
         }
