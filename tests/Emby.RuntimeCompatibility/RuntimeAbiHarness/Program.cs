@@ -14,6 +14,15 @@ namespace Emby.RuntimeCompatibility
 
         private static int Main(string[] args)
         {
+            var runtimeVersion = Environment.Version;
+            if (runtimeVersion.Major != 8 || runtimeVersion.Minor != 0 || runtimeVersion.Build != 28)
+            {
+                Console.Error.WriteLine("Runtime ABI harness requires .NET 8.0.28 but is executing on " + runtimeVersion + ".");
+                return 1;
+            }
+
+            Console.WriteLine("Runtime ABI harness executing on .NET " + runtimeVersion + ".");
+
             if (args.Length != 5)
             {
                 Console.Error.WriteLine("Usage: RuntimeAbiHarness <candidate> <released> <sdk> <server-4.9> <server-4.10>");
@@ -42,6 +51,8 @@ namespace Emby.RuntimeCompatibility
             {
                 var controller = context.LoadFromAssemblyPath(Path.Combine(runtimeDirectory, "MediaBrowser.Controller.dll"));
                 var liveStreamInterface = controller.GetType(LiveStreamTypeName, true);
+                if (!File.Exists(Path.Combine(runtimeDirectory, "System.IO.Pipelines.dll")))
+                    context.LoadFromAssemblyPath(Path.Combine(AppContext.BaseDirectory, "System.IO.Pipelines.dll"));
                 var plugin = context.LoadFromAssemblyPath(pluginPath);
                 var liveStreamType = plugin.GetType(PluginTypeName, true);
                 var map = liveStreamType.GetInterfaceMap(liveStreamInterface);
@@ -138,6 +149,13 @@ namespace Emby.RuntimeCompatibility
 
         protected override Assembly Load(AssemblyName assemblyName)
         {
+            if (assemblyName.Name == "System.IO.Pipelines")
+            {
+                var pipelinesAssembly = Path.Combine(RuntimeDirectory, assemblyName.Name + ".dll");
+                if (File.Exists(pipelinesAssembly))
+                    return LoadFromAssemblyPath(pipelinesAssembly);
+            }
+
             if (assemblyName.Name == "netstandard" || assemblyName.Name.StartsWith("System", StringComparison.Ordinal) || assemblyName.Name.StartsWith("Microsoft", StringComparison.Ordinal))
                 return null;
 

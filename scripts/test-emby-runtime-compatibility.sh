@@ -3,10 +3,25 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HARNESS="$ROOT/tests/Emby.RuntimeCompatibility/RuntimeAbiHarness/RuntimeAbiHarness.csproj"
+HARNESS_DLL="$ROOT/tests/Emby.RuntimeCompatibility/RuntimeAbiHarness/bin/Release/net8.0/RuntimeAbiHarness.dll"
 LOCK="$ROOT/tests/Emby.RuntimeCompatibility/artifacts.lock"
 WORK="${TMPDIR:-/tmp}/emby-runtime-compatibility"
 DOWNLOADS="$WORK/downloads"
 EXTRACTED="$WORK/extracted"
+# Set EMBY_RUNTIME_DOTNET_HOST to the dotnet host containing Microsoft.NETCore.App 8.0.28.
+RUNTIME_DOTNET_HOST="${EMBY_RUNTIME_DOTNET_HOST:-dotnet}"
+
+if ! command -v "$RUNTIME_DOTNET_HOST" >/dev/null 2>&1; then
+    printf 'Runtime ABI compatibility requires a dotnet host; %s was not found. Set EMBY_RUNTIME_DOTNET_HOST to a host with Microsoft.NETCore.App 8.0.28.\n' "$RUNTIME_DOTNET_HOST" >&2
+    exit 1
+fi
+
+if ! "$RUNTIME_DOTNET_HOST" --list-runtimes | grep -Eq '^Microsoft\.NETCore\.App 8\.0\.28 \['; then
+    printf 'Runtime ABI compatibility requires Microsoft.NETCore.App 8.0.28 in %s. Set EMBY_RUNTIME_DOTNET_HOST to a host with that exact runtime; the harness will not roll forward.\n' "$RUNTIME_DOTNET_HOST" >&2
+    exit 1
+fi
+
+printf 'Verified Microsoft.NETCore.App 8.0.28 in %s.\n' "$RUNTIME_DOTNET_HOST"
 
 download() {
     local name="$1"
@@ -40,7 +55,8 @@ printf '%s  %s\n' "be9001d50e829df1096b325bf8923ed54355686348b652fe8da0cf1c652c8
 printf '%s  %s\n' "1a45d6c80ff1a19083f8bc4d3578cedbb04c71159a370370e6e02964ffe7ff86" "$EXTRACTED/server-4.10.0.40/opt/emby-server/system/MediaBrowser.Controller.dll" | sha256sum --check --status
 
 dotnet build --configuration Release "$ROOT/Emby.M3uEditor.Plugin/Emby.M3uEditor.Plugin.csproj"
-dotnet run --configuration Release --project "$HARNESS" -- \
+dotnet build --configuration Release "$HARNESS"
+"$RUNTIME_DOTNET_HOST" "$HARNESS_DLL" \
     "$ROOT/Emby.M3uEditor.Plugin/bin/Release/netstandard2.0/Emby.M3uEditor.Plugin.dll" \
     "$DOWNLOADS/Emby.M3uEditor.Plugin.v1.5.0.dll" \
     "$EXTRACTED/sdk/lib/netstandard2.0" \

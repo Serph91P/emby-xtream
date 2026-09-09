@@ -104,7 +104,6 @@ namespace Emby.M3uEditor.Plugin.Tests
         {
             var method = GetConsumerMethod(name);
             Assert.True(method.IsPublic);
-            Assert.True(method.IsVirtual);
             Assert.Equal(typeof(void), method.ReturnType);
             var parameters = method.GetParameters();
             Assert.Single(parameters);
