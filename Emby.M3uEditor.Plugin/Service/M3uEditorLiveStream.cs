@@ -12,7 +12,7 @@ using Emby.M3uEditor.Plugin.Util;
 
 namespace Emby.M3uEditor.Plugin.Service
 {
-    internal sealed class M3uEditorLiveStream : ILiveStream, IDisposable
+    internal class M3uEditorLiveStream : ILiveStream, IDisposable
     {
         private readonly HttpClient _httpClient;
         private readonly ILogger _logger;
@@ -33,6 +33,18 @@ namespace Emby.M3uEditor.Plugin.Service
         }
 
         public int ConsumerCount { get; set; }
+
+        public virtual void AddConsumer(string consumerId)
+        {
+            ConsumerCount++;
+        }
+
+        public virtual void RemoveConsumer(string consumerId)
+        {
+            if (ConsumerCount > 0)
+                ConsumerCount--;
+        }
+
         public string OriginalStreamId { get; set; }
         public string TunerHostId { get; }
         public bool EnableStreamSharing => false;
