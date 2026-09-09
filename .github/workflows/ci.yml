@@ -31,6 +31,14 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Setup .NET 8 runtime compatibility host
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.422'
+
+      - name: Verify .NET 8 runtime compatibility host
+        run: dotnet --list-runtimes | grep -Eq '^Microsoft\.NETCore\.App 8\.0\.28 \['
+
       - name: Restore dependencies
         run: |
           dotnet restore Emby.M3uEditor.Plugin/Emby.M3uEditor.Plugin.csproj
@@ -43,6 +51,9 @@ jobs:
 
       - name: Test
         run: dotnet test --no-build --configuration Release --verbosity normal --logger "trx;LogFileName=test-results.trx" Emby.M3uEditor.Plugin.Tests/Emby.M3uEditor.Plugin.Tests.csproj
+
+      - name: Verify Emby runtime compatibility
+        run: bash scripts/test-emby-runtime-compatibility.sh
 
       - name: Upload test results
         if: always()
@@ -92,4 +103,3 @@ jobs:
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: moderate
-
