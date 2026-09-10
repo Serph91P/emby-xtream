@@ -1,0 +1,5 @@
+mediabrowser.server.core.4.8.0.80.nupkg aee9eb288c61205d440fbf789f15c703226bcc304be48302256f24e39c742e3e https://api.nuget.org/v3-flatcontainer/mediabrowser.server.core/4.8.0.80/mediabrowser.server.core.4.8.0.80.nupkg
+mediabrowser.common.4.8.0.80.nupkg c95800595be134231b7a00d71f9cc929464b56b3769dc3d0b4389183271ed1d6 https://api.nuget.org/v3-flatcontainer/mediabrowser.common/4.8.0.80/mediabrowser.common.4.8.0.80.nupkg
+emby-server-deb_4.9.5.0_amd64.deb 1d718ffa0169c393de3eafda65b1b057a3db4ead93ffeb5883abd01735de9843 https://github.com/MediaBrowser/Emby.Releases/releases/download/4.9.5.0/emby-server-deb_4.9.5.0_amd64.deb
+emby-server-deb_4.10.0.40_amd64.deb 0e23e480d3607bef8c5439ca2fb5a04191194e6c40531ec4a8b0946c3d666487 https://github.com/MediaBrowser/Emby.Releases/releases/download/4.10.0.40/emby-server-deb_4.10.0.40_amd64.deb
+Emby.M3uEditor.Plugin.v1.5.0.dll a982dc4a36be782a4696afe33a078f32bb177326e18d4727fbe21d80d71cb4ba https://github.com/Serph91P/m3u-editor-for-emby/releases/download/v1.5.0/Emby.M3uEditor.Plugin.dll
